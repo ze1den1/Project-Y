@@ -1,0 +1,15 @@
+class Hero:
+
+    def __init__(self, position):
+        self.x, self.y = position
+
+    def get_position(self):
+        return self.x, self.y
+
+    def set_position(self, position):
+        self.x, self.y = position
+
+    def render(self, screen):
+        center = self.x * TITLE_SIZE + TITLE_SIZE // 2, self.y * TITLE_SIZE + TITLE_SIZE // 2
+        pygame.draw.circle(screen, 'blue', center, TITLE_SIZE // 2)
+
