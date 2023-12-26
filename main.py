@@ -1,77 +1,49 @@
-import pygame
-
-WINDOW_SIZE = WINDOW_WIDTH, WINDOW_HEIGHT = 800, 800
-FPS = 15
-MAPS_DIR = 'maps'
-TITLE_SIZE = 32
-
-
-class Hero:
-
-    def __init__(self, position):
-        self.x, self.y = position
-
-    def get_position(self):
-        return self.x, self.y
-
-    def set_position(self, position):
-        self.x, self.y = position
-
-    def render(self, screen):
-        center = self.x * TITLE_SIZE + TITLE_SIZE // 2, self.y * TITLE_SIZE + TITLE_SIZE // 2
-        pygame.draw.circle(screen, 'blue', center, TITLE_SIZE // 2)
-
-
-class Enemies:
-
-    def __init__(self):
-        pass
+import pygame as pg
+from data.scripts.sprites import Hero
+pg.init()
 
 
 class Game:
+    FPS = 60
+    BACKGROUND = pg.Color('black')
 
-    def __init__(self, hero):
-        self.hero = hero
-        self.points = 0
+    def __init__(self) -> None:
+        pass
 
-    def render(self, screen):
-        self.hero.render(screen)
+    def menu(self) -> None:
+        pass  # TODO main menu
 
-    def update_hero(self):
-        next_x, next_y = self.hero.get_position()
-        if pygame.key.get_pressed()[pygame.K_LEFT]:
-            next_x -= 1
-        if pygame.key.get_pressed()[pygame.K_RIGHT]:
-            next_x += 1
-        if pygame.key.get_pressed()[pygame.K_UP]:
-            next_y -= 1
-        if pygame.key.get_pressed()[pygame.K_DOWN]:
-            next_y += 1
-        self.hero.set_position((next_x, next_y))
-        if pygame.key.get_pressed()[pygame.K_SPACE]:
-            self.points += 1
+    @staticmethod
+    def terminate() -> None:
+        pg.quit()
 
+    def main(self) -> None:
+        screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
+        screen.fill(self.BACKGROUND)
+        pg.display.set_caption('Caves of Siberia')
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode(WINDOW_SIZE)
+        all_sprites = pg.sprite.Group()
+        Hero((50, 50), all_sprites)
 
-    hero = Hero((12, 12))
-    game = Game(hero)
+        clock = pg.time.Clock()
 
-    clock = pygame.time.Clock()
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        game.update_hero()
-        screen.fill((0, 0, 0))
-        game.render(screen)
-        pygame.display.flip()
-        clock.tick(FPS)
-    pygame.quit()
+        run = True
+        while run:
+            clock.tick(self.FPS)
+
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    run = False
+            screen.fill(self.BACKGROUND)
+
+            all_sprites.draw(screen)
+            all_sprites.update()
+
+            pg.display.update()
+
+        self.terminate()
 
 
 if __name__ == '__main__':
-    main()
+    game = Game()
+    game.main()
