@@ -1,5 +1,6 @@
 import pygame as pg
 from data.scripts.sprites import Hero
+from data.scripts.mapReader import read_map
 pg.init()
 
 
@@ -19,7 +20,9 @@ class Game:
 
     def main(self) -> None:
         screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
-        screen.fill(self.BACKGROUND)
+        field = read_map('data/maps/lvl1.dat')
+        screen.blit(field, (0, 0))
+
         pg.display.set_caption('Caves of Siberia')
 
         all_sprites = pg.sprite.Group()
@@ -34,7 +37,7 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     run = False
-            screen.fill(self.BACKGROUND)
+            screen.blit(field, (0, 0))
 
             all_sprites.draw(screen)
             all_sprites.update()
