@@ -1,12 +1,14 @@
 import pygame as pg
 from data.scripts.sprites import Hero
-from data.scripts.mapReader import get_map_surface, get_map_data, get_player_pos
+from data.scripts.mapReader import get_map_data, get_player_pos
+from data.scripts.obstacles import SimpleObject
 pg.init()
 
 
 class Game:
     FPS = 60
-    BACKGROUND = pg.Color('black')
+    BACKGROUND = pg.Color('white')
+    TILE_SIZE = 64
 
     def __init__(self) -> None:
         pass
@@ -19,17 +21,18 @@ class Game:
         pg.quit()
 
     def main(self) -> None:
+        self.all_sprites = pg.sprite.Group()
+        self.obstacles = pg.sprite.Group()
+
         screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
         field = get_map_data('data/maps/lvl1.dat')
         player_pos = get_player_pos(field)
-        field = get_map_surface(field)
-
+        field = self.get_map_surface(field)
         screen.blit(field, (0, 0))
 
         pg.display.set_caption('Caves of Siberia')
 
-        all_sprites = pg.sprite.Group()
-        Hero(player_pos, all_sprites)
+        Hero(self, player_pos, self.FPS)
 
         clock = pg.time.Clock()
 
@@ -42,12 +45,24 @@ class Game:
                     run = False
             screen.blit(field, (0, 0))
 
-            all_sprites.draw(screen)
-            all_sprites.update()
+            self.all_sprites.draw(screen)
+            self.all_sprites.update()
 
             pg.display.update()
 
         self.terminate()
+
+    def get_map_surface(self, data: list) -> pg.Surface:
+        lvl_height = len(data) * self.TILE_SIZE
+        lvl_width = len(data[0]) * self.TILE_SIZE
+        lvl_map = pg.Surface((lvl_width, lvl_height))
+        lvl_map.fill(self.BACKGROUND)
+
+        for y in range(len(data)):
+            for x in range(len(data[0])):
+                if data[y][x].isdigit():
+                    SimpleObject(self, int(data[y][x]), x, y)
+        return lvl_map
 
 
 if __name__ == '__main__':

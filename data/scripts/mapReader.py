@@ -1,10 +1,8 @@
 from enum import Enum
-
 import pygame as pg
 
 pg.init()
-BACKGROUND = (255, 255, 255)
-TILE_SIZE = 50
+TILE_SIZE = 64
 
 
 class Objects(Enum):
@@ -42,21 +40,6 @@ def get_map_data(file: str) -> list:
 def get_player_pos(data: list[list]) -> tuple[int, int] or None:
     for line in range(len(data)):
         if '@' in data[line]:
-            x = data[line].index('@') * TILE_SIZE
-            y = line * TILE_SIZE
+            x = data[line].index('@') * TILE_SIZE + (TILE_SIZE >> 1)
+            y = line * TILE_SIZE + (TILE_SIZE >> 1)
             return x, y
-
-
-def get_map_surface(data: list) -> pg.Surface:
-    lvl_height = len(data) * TILE_SIZE
-    lvl_width = len(data[0]) * TILE_SIZE
-    lvl_map = pg.Surface((lvl_width, lvl_height))
-    lvl_map.fill(BACKGROUND)
-
-    for y in range(len(data)):
-        for x in range(len(data[0])):
-            if data[y][x].isdigit():
-                pg.draw.rect(lvl_map,
-                             obj_dict[int(data[y][x])],
-                             (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
-    return lvl_map
