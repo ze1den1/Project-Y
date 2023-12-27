@@ -1,6 +1,6 @@
 import pygame as pg
 from data.scripts.sprites import Hero
-from data.scripts.mapReader import read_map
+from data.scripts.mapReader import get_map_surface, get_map_data, get_player_pos
 pg.init()
 
 
@@ -20,13 +20,16 @@ class Game:
 
     def main(self) -> None:
         screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
-        field = read_map('data/maps/lvl1.dat')
+        field = get_map_data('data/maps/lvl1.dat')
+        player_pos = get_player_pos(field)
+        field = get_map_surface(field)
+
         screen.blit(field, (0, 0))
 
         pg.display.set_caption('Caves of Siberia')
 
         all_sprites = pg.sprite.Group()
-        Hero((50, 50), all_sprites)
+        Hero(player_pos, all_sprites)
 
         clock = pg.time.Clock()
 

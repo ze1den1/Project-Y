@@ -8,7 +8,7 @@ class Hero(pg.sprite.Sprite):
 
     def __init__(self, position: tuple[int, int], group: pg.sprite.Group) -> None:
         super().__init__(group)
-        self.rect = self.image.get_rect(center=position)
+        self.rect = self.image.get_rect(topleft=position)
         self.speed = 5
         self.direction = pg.math.Vector2()
 
