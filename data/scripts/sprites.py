@@ -4,9 +4,9 @@ pg.init()
 
 
 class Hero(pg.sprite.Sprite):
-    image = pg.image.load('data/images/hero.png')
-    MAX_SPEED = 8
-    MIN_SPEED = 3
+    image = pg.image.load('data/images/creatures/hero.png')
+    MAX_SPEED = 400
+    MIN_SPEED = 200
 
     def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int) -> None:
         super().__init__(game.all_sprites)
@@ -14,7 +14,7 @@ class Hero(pg.sprite.Sprite):
         self.rect = self.image.get_rect(center=position)
         self.pos = list(self.rect.center)
         self.fps = fps
-        self.speed = 2
+        self.speed = 200
         self.direction = pg.math.Vector2()
 
     def update_direction(self) -> None:
@@ -38,7 +38,7 @@ class Hero(pg.sprite.Sprite):
         self.update_direction()
         old_pos = self.pos.copy()
 
-        self.pos += self.speed * self.direction
+        self.pos += (self.speed * self.direction) / self.fps
         self.rect.center = self.pos
 
         if pg.sprite.spritecollideany(self, self.game.obstacles):
@@ -47,9 +47,9 @@ class Hero(pg.sprite.Sprite):
         self.rect.center = self.pos
         if (self.speed < self.MAX_SPEED
                 and (self.direction.x != 0 or self.direction.y != 0)):
-            self.speed += 4 / self.fps
+            self.speed += 100 / self.fps
         elif self.direction.x == 0 and self.direction.y == 0 and self.speed > self.MIN_SPEED:
-            self.speed -= 6 / self.fps
+            self.speed -= 400 / self.fps
 
 
 class Enemies:

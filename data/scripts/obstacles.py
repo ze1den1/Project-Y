@@ -5,10 +5,7 @@ FILENAMES = ('stone.png', 'copper.png', 'iron.png', 'ruby.png', 'sapphire.png', 
 
 
 class SimpleObject(pg.sprite.Sprite):
-    IMAGES = []
-    for i in range(7):
-        image = pg.image.load(os.path.join('data', 'images', FILENAMES[i]))
-        IMAGES.append(image)
+    IMAGES = [pg.image.load(os.path.join('data', 'images', 'objects', FILENAMES[i])) for i in range(7)]
     TILE_SIZE = 64
 
     def __init__(self, game: 'main.Game', obst_type: int, pos_x: int, pos_y: int) -> None:
