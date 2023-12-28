@@ -1,14 +1,35 @@
 import pygame as pg
 import os
-
 pg.init()
+
+
+class ButtonGroup:
+    def __init__(self) -> None:
+        self.button_list = []
+
+    def add(self, button) -> None:
+        self.button_list.append(button)
+
+    def draw(self, screen: pg.Surface) -> None:
+        for button in self.button_list:
+            button.draw(screen)
+
+    def handle(self, event) -> None:
+        for button in self.button_list:
+            button.handle_event(event)
+
+    def check_hover(self, mouse_pos: tuple[int, int]) -> None:
+        for button in self.button_list:
+            button.hover_check(mouse_pos)
 
 
 class DefaultButton:
     def __init__(self, pos: tuple[int, int], width: int, height: int,
                  button_img: str, hover_image: str = None,
                  sound: str = None,
-                 text: str = '', text_color: tuple[int, int, int] or str = (255, 255, 255), text_size: int = 36) -> None:
+                 text: str = '', text_color: tuple[int, int, int] or str = (255, 255, 255),
+                 text_size: int = 36,
+                 group: ButtonGroup = None) -> None:
         self._x, self._y = pos
         self._width = width
         self._height = height
@@ -45,6 +66,9 @@ class DefaultButton:
 
         self._is_hovered = False
 
+        if group is not None:
+            group.add(self)
+
     def draw(self, screen: pg.Surface) -> None:
         current_image = self._hover_image if self._is_hovered else self._image
         screen.blit(current_image, self._rect.topleft)
@@ -56,7 +80,7 @@ class DefaultButton:
     def hover_check(self, mouse_pos: tuple[int, int]) -> None:
         self._is_hovered = self._rect.collidepoint(mouse_pos)
 
-    def handle_event(self, event):
+    def handle_event(self, event) -> None:
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and self._is_hovered:
             if self._sound:
                 self._sound.play()
