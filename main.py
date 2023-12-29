@@ -2,7 +2,7 @@ import os.path
 import sys
 
 import pygame as pg
-from data.scripts.sprites import Hero
+from data.scripts.sprites import Hero, Camera
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
@@ -25,12 +25,14 @@ class Game:
         self.to_quit = False
 
         self.interface_volume = 1.0
+        self.all_sprites = pg.sprite.Group()
+        self.hero = Hero(self, [10, 10], 120)
 
         self.music_sounds = Music()
         self.music_volume = 1.0
 
     def main_menu(self) -> None:
-        screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
+        screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
         screen.fill('white')
 
         buttons_group = ButtonGroup()
@@ -52,6 +54,7 @@ class Game:
         interface_sounds.set_volume(self.interface_volume)
 
         run = True
+
         while run:
             for event in pg.event.get():
                 if event.type == pg.USEREVENT and event.button == start_button:
@@ -67,6 +70,7 @@ class Game:
 
             buttons_group.check_hover(pg.mouse.get_pos())
             buttons_group.draw(screen)
+            # изменяем ракурс камеры
 
             pg.display.update()
 
@@ -74,7 +78,7 @@ class Game:
             self.terminate()
 
     def settings_menu(self) -> None:
-        screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
+        screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
         screen.fill('white')
 
         font = pg.font.Font(None, 60)
@@ -223,7 +227,7 @@ class Game:
         self.obstacles = pg.sprite.Group()
         self.main_menu()
 
-        self._main_screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
+        self._main_screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
         self.restart_game()
         pg.display.set_caption('Caves of Siberia')
 
@@ -244,12 +248,17 @@ class Game:
 
         run = True
         self.to_quit = False
+        camera = Camera()
         while run:
             clock.tick(self.FPS)
 
             for event in pg.event.get():
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     self.pause_menu()
+            camera.update(self.hero)
+            # обновляем положение всех спрайтов
+            for sprite in self.all_sprites:
+                camera.apply(sprite)
             self._main_screen.blit(self._field, (0, 0))
 
             self.all_sprites.draw(self._main_screen)
