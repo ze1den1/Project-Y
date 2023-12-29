@@ -30,16 +30,13 @@ class DefaultButton:
                  text: str = '', text_color: tuple[int, int, int] or str = (255, 255, 255),
                  text_size: int = 36,
                  group: ButtonGroup = None) -> None:
-        self._x, self._y = pos
-        self._width = width
-        self._height = height
         self._text = text
         self._text_color = text_color
         self._sound = None
 
         self._font = pg.font.Font(None, text_size)
 
-        image_path = os.path.join('data', 'images', 'buttons', button_img)
+        image_path = os.path.join('data', 'images', 'UI', button_img)
         try:
             self._image = pg.image.load(image_path)
         except FileNotFoundError:
@@ -48,7 +45,7 @@ class DefaultButton:
         self._hover_image = self._image
 
         if hover_image is not None:
-            hover_path = os.path.join('data', 'images', 'buttons', 'hover', hover_image)
+            hover_path = os.path.join('data', 'images', 'UI', 'hover', hover_image)
             try:
                 self._hover_image = pg.image.load(hover_path)
             except FileNotFoundError:
@@ -85,3 +82,59 @@ class DefaultButton:
             if self._sound:
                 self._sound.play()
             pg.event.post(pg.event.Event(pg.USEREVENT, button=self))
+
+
+class Slider:
+    def __init__(self, pos: tuple[int, int], width: int, height: int,
+                 slider_color: tuple[int, int, int] or str = (93, 106, 110),
+                 change_color: tuple[int, int, int] or str = (66, 194, 237),
+                 step: int = 10):
+        self._rect = pg.rect.Rect(pos[0], pos[1], width, height)
+        self._slider_surf = pg.Surface((self._rect.width, self._rect.height))
+        self._slider_surf.fill(slider_color)
+        self._change_color = change_color
+        self._changed_surf = pg.Surface((self._rect.width, self._rect.height))
+        self._changed_surf.fill(self._change_color)
+
+        self._piece = self._rect.width // step
+        self.value = step
+
+    def change(self, value: int) -> None:
+        self.value = value
+        self._changed_surf = pg.Surface((self._piece * self.value, self._rect.height))
+        self._changed_surf.fill(self._change_color)
+
+    def draw(self, screen: pg.Surface) -> None:
+        screen.blit(self._slider_surf, self._rect.topleft)
+        screen.blit(self._changed_surf, self._rect.topleft)
+
+    def get_value(self) -> int:
+        return self.value
+
+
+class Counter:
+    def __init__(self, pos: tuple[int, int], width: int, height: int,
+                 number_color: tuple[int, int, int] or str = (0, 0, 0),
+                 bg_color: tuple[int, int, int] or str = (0, 0, 0),
+                 group: ButtonGroup = None):
+        self._rect = pg.rect.Rect(pos[0], pos[1], width, height)
+        self._count = 0
+        self._font = pg.font.Font(None, 80)
+        self._color = number_color
+        self._counter_surf = pg.Surface((self._rect.width, self._rect.height))
+        self._counter_surf.fill(bg_color)
+
+        self._numbers_surf = self._font.render('$' + str(self._count).ljust(4, '0'),
+                                               True, self._color)
+
+        if group is not None:
+            group.add(self)
+
+    def change(self, value: int) -> None:
+        self._count = value
+        self._numbers_surf = self._font.render('$' + str(self._count).ljust(4, '0'),
+                                               True, self._color)
+
+    def draw(self, screen: pg.Surface) -> None:
+        screen.blit(self._counter_surf, self._rect.topleft)
+        screen.blit(self._numbers_surf, (self._rect.topleft[0] + 20, self._rect.topleft[1]))
