@@ -1,10 +1,11 @@
+import os.path
 import sys
 
 import pygame as pg
 from data.scripts.sprites import Hero
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject
-from data.scripts.buttons import DefaultButton, ButtonGroup, Slider
+from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
 from data.scripts.sounds import InterfaceSounds, Music
 
 pg.init()
@@ -17,6 +18,8 @@ class Game:
     TILE_SIZE = 64
     MONITOR_W = pg.display.Info().current_w
     MONITOR_H = pg.display.Info().current_h
+    HEART_IMG = pg.image.load(os.path.join('data', 'images', 'UI', 'heart.png'))
+    HEART_IMG = pg.transform.scale(HEART_IMG, (48, 48))
 
     def __init__(self) -> None:
         self.to_quit = False
@@ -192,32 +195,50 @@ class Game:
                     run = False
                 elif event.type == pg.USEREVENT and event.button == quit_to_menu:
                     run = False
+                    self.restart_game()
                     self.main_menu()
                 elif event.type == pg.USEREVENT and event.button == quit_from_the_game:
                     pg.time.delay(500)
                     self.terminate()
                 pause_buttons.handle(event)
 
-            self.main_screen.blit(pause_surf, pause_rect)
+            self._main_screen.blit(pause_surf, pause_rect)
             pause_buttons.check_hover(pg.mouse.get_pos())
-            pause_buttons.draw(self.main_screen)
+            pause_buttons.draw(self._main_screen)
             pg.display.update()
+
+    def restart_game(self) -> None:
+        if self.all_sprites:
+            for sprite in self.all_sprites:
+                sprite.kill()
+
+        map_data = get_map_data('data/maps/lvl1.dat')
+        player_pos = get_player_pos(map_data)
+        self._field = self.get_map_surface(map_data)
+        self._main_screen.blit(self._field, (0, 0))
+        Hero(self, player_pos, self.FPS)
 
     def main(self) -> None:
         self.all_sprites = pg.sprite.Group()
         self.obstacles = pg.sprite.Group()
         self.main_menu()
 
-        self.main_screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
-
-        field = get_map_data('data/maps/lvl1.dat')
-        player_pos = get_player_pos(field)
-        field = self.get_map_surface(field)
-        self.main_screen.blit(field, (0, 0))
-
+        self._main_screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
+        self.restart_game()
         pg.display.set_caption('Caves of Siberia')
 
-        Hero(self, player_pos, self.FPS)
+        ui = ButtonGroup()
+        ui_sprites = pg.sprite.Group()
+        hp_bar = Slider((75, 20), 300, 50, (5, 5, 5), (227, 25, 25), 100)
+        heart = pg.sprite.Sprite()
+        heart.image = self.HEART_IMG
+        heart.rect = (20, 20, 64, 64)
+        ui_sprites.add(heart)
+
+        ui.add(hp_bar)
+
+        counter = Counter((self.MONITOR_W - 250, 20), 300, 50,
+                          number_color=(255, 255, 255), group=ui)
 
         clock = pg.time.Clock()
 
@@ -229,10 +250,13 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     self.pause_menu()
-            self.main_screen.blit(field, (0, 0))
+            self._main_screen.blit(self._field, (0, 0))
 
-            self.all_sprites.draw(self.main_screen)
+            self.all_sprites.draw(self._main_screen)
             self.all_sprites.update()
+
+            ui.draw(self._main_screen)
+            ui_sprites.draw(self._main_screen)
 
             pg.display.update()
 

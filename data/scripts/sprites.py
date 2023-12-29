@@ -17,6 +17,11 @@ class Hero(pg.sprite.Sprite):
         self.speed = 200
         self.direction = pg.math.Vector2()
 
+        self._hp = 100
+
+    def get_hp(self) -> int:
+        return self._hp
+
     def update_direction(self) -> None:
         keys = pg.key.get_pressed()
 
