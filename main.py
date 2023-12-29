@@ -4,9 +4,11 @@ import pygame as pg
 from data.scripts.sprites import Hero
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject
-from data.scripts.buttons import DefaultButton, ButtonGroup
+from data.scripts.buttons import DefaultButton, ButtonGroup, Slider
+from data.scripts.sounds import InterfaceSounds, Music
 
 pg.init()
+pg.mixer.init()
 
 
 class Game:
@@ -19,20 +21,32 @@ class Game:
     def __init__(self) -> None:
         self.to_quit = False
 
+        self.interface_volume = 1.0
+
+        self.music_sounds = Music()
+        self.music_volume = 1.0
+
     def main_menu(self) -> None:
         screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
         screen.fill('white')
 
         buttons_group = ButtonGroup()
+        interface_sounds = InterfaceSounds()
+
         start_button = DefaultButton((self.MONITOR_W >> 1, (self.MONITOR_H >> 1) - 120), 300, 150,
                                      'button.png', text='Start', text_size=60,
                                      sound='click.wav', group=buttons_group)
+        interface_sounds.add(start_button._sound)
         settings_button = DefaultButton((self.MONITOR_W >> 1, (self.MONITOR_H >> 1)), 300, 150,
                                         'button.png', text='Settings', text_size=60,
                                         sound='click.wav', group=buttons_group)
+        interface_sounds.add(settings_button._sound)
         quit_button = DefaultButton((self.MONITOR_W >> 1, (self.MONITOR_H >> 1) + 120), 300, 150,
                                     'button.png', text='Quit', text_size=60,
                                     sound='click.wav', group=buttons_group)
+        interface_sounds.add(quit_button._sound)
+
+        interface_sounds.set_volume(self.interface_volume)
 
         run = True
         while run:
@@ -44,6 +58,7 @@ class Game:
                     pg.time.delay(500)
                     self.to_quit = True
                 elif event.type == pg.USEREVENT and event.button == settings_button:
+                    run = False
                     self.settings_menu()
                 buttons_group.handle(event)
 
@@ -56,7 +71,94 @@ class Game:
             self.terminate()
 
     def settings_menu(self) -> None:
-        pass  # TODO settings
+        screen = pg.display.set_mode((0, 0), pg.RESIZABLE)
+        screen.fill('white')
+
+        font = pg.font.Font(None, 60)
+        font_surf = font.render('UI sounds', True, (0, 0, 0))
+
+        states = []
+        volume_surf = pg.Surface((self.MONITOR_W - 400, self.MONITOR_H - 200))
+        volume_rect = volume_surf.get_rect(topleft=(400, 100))
+        volume_surf.fill((98, 104, 115))
+        states.append(volume_surf)
+        video_surf = pg.Surface((self.MONITOR_W - 400, self.MONITOR_H - 200))
+        video_rect = video_surf.get_rect(topleft=(400, 100))
+        video_surf.fill((98, 104, 115))
+        states.append(video_surf)
+        settings_state = -1
+
+        buttons_group = ButtonGroup()
+        interface_sounds = InterfaceSounds()
+
+        return_btn = DefaultButton((150, 100), 200, 100,
+                                   'button.png', text='Return', text_size=60,
+                                   sound='click.wav', group=buttons_group)
+        interface_sounds.add(return_btn._sound)
+        volume_btn = DefaultButton((150, 250), 200, 100,
+                                   'button.png', text='volume', text_size=60,
+                                   sound='click.wav', group=buttons_group)
+        interface_sounds.add(volume_btn._sound)
+        video_btn = DefaultButton((150, 400), 200, 100,
+                                  'button.png', text='video', text_size=60,
+                                  sound='click.wav', group=buttons_group)
+        interface_sounds.add(video_btn._sound)
+
+        volume_buttons = ButtonGroup()
+        slider = Slider((volume_rect.topleft[0] + 400, volume_rect.topleft[1] + 100), 600, 60,
+                        slider_color=(126, 134, 148))
+        decrease_value = DefaultButton((volume_rect.topleft[0] + 300, volume_rect.topleft[1] + 130),
+                                       100, 50,
+                                       'left_arrow.png',
+                                       sound='click.wav', group=volume_buttons)
+        interface_sounds.add(decrease_value._sound)
+        increase_value = DefaultButton((volume_rect.topleft[0] + 1100, volume_rect.topleft[1] + 130),
+                                       100, 50,
+                                       'right_arrow.png',
+                                       sound='click.wav', group=volume_buttons)
+        interface_sounds.add(increase_value._sound)
+
+        interface_sounds.set_volume(self.interface_volume)
+
+        value = int(self.interface_volume * 10)
+        slider.change(value)
+
+        run = True
+        while run:
+            for event in pg.event.get():
+                if event.type == pg.USEREVENT and event.button == return_btn:
+                    run = False
+                    self.main_menu()
+                elif event.type == pg.USEREVENT and event.button == volume_btn:
+                    settings_state = 0
+                elif event.type == pg.USEREVENT and event.button == video_btn:
+                    settings_state = 1
+                elif event.type == pg.USEREVENT and event.button == decrease_value and 0 < value <= 10:
+                    value -= 1
+                    slider.change(value)
+                    self.interface_volume = value / 10
+                    interface_sounds.set_volume(self.interface_volume)
+                elif event.type == pg.USEREVENT and event.button == increase_value and 0 <= value < 10:
+                    value += 1
+                    slider.change(value)
+                    self.interface_volume = value / 10
+                    interface_sounds.set_volume(self.interface_volume)
+
+                if settings_state == 0:
+                    volume_buttons.handle(event)
+                buttons_group.handle(event)
+
+            if settings_state != -1:
+                screen.blit(states[settings_state], (400, 100))
+                if settings_state == 0:
+                    slider.draw(screen)
+                    volume_buttons.draw(screen)
+                    volume_buttons.check_hover(pg.mouse.get_pos())
+                    screen.blit(font_surf, (volume_rect.topleft[0] + 45, volume_rect.topleft[1] + 110))
+
+            buttons_group.check_hover(pg.mouse.get_pos())
+            buttons_group.draw(screen)
+            pg.display.update()
 
     def pause_menu(self) -> None:
         pause_surf = pg.Surface((480, 720))
@@ -65,18 +167,22 @@ class Game:
         pause_rect = pause_surf.get_rect(center=pause_pos)
 
         pause_buttons = ButtonGroup()
+        interface_sounds = InterfaceSounds()
+
         continue_button = DefaultButton((pause_rect.centerx, pause_rect.centery - 200), 200, 100,
                                         'button.png', text='continue', text_size=60,
                                         sound='click.wav', group=pause_buttons)
-        to_settings = DefaultButton((pause_rect.centerx, pause_rect.centery), 200, 100,
-                                    'button.png', text='settings', text_size=60,
-                                    sound='click.wav', group=pause_buttons)
+        interface_sounds.add(continue_button._sound)
         quit_to_menu = DefaultButton((pause_rect.centerx, pause_rect.centery + 200), 200, 100,
                                      'button.png', text='menu', text_size=60,
                                      sound='click.wav', group=pause_buttons)
+        interface_sounds.add(quit_to_menu._sound)
         quit_from_the_game = DefaultButton((pause_rect.centerx, pause_rect.centery + 300), 200, 100,
                                            'button.png', text='exit', text_size=60,
                                            sound='click.wav', group=pause_buttons)
+        interface_sounds.add(quit_from_the_game._sound)
+
+        interface_sounds.set_volume(self.interface_volume)
 
         run = True
         while run:
@@ -84,12 +190,11 @@ class Game:
                 if (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE) \
                         or (event.type == pg.USEREVENT and event.button == continue_button):
                     run = False
-                elif event.type == pg.USEREVENT and event.button == to_settings:
-                    self.settings_menu()
                 elif event.type == pg.USEREVENT and event.button == quit_to_menu:
                     run = False
                     self.main_menu()
                 elif event.type == pg.USEREVENT and event.button == quit_from_the_game:
+                    pg.time.delay(500)
                     self.terminate()
                 pause_buttons.handle(event)
 
@@ -97,11 +202,6 @@ class Game:
             pause_buttons.check_hover(pg.mouse.get_pos())
             pause_buttons.draw(self.main_screen)
             pg.display.update()
-
-    @staticmethod
-    def terminate() -> None:
-        pg.quit()
-        sys.exit(1)
 
     def main(self) -> None:
         self.all_sprites = pg.sprite.Group()
@@ -150,6 +250,11 @@ class Game:
                 if data[y][x].isdigit():
                     SimpleObject(self, int(data[y][x]), x, y)
         return lvl_map
+
+    @staticmethod
+    def terminate() -> None:
+        pg.quit()
+        sys.exit(1)
 
 
 if __name__ == '__main__':

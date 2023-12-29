@@ -1,4 +1,5 @@
 import pygame as pg
+from data.scripts.sounds import InterfaceSounds
 import os
 pg.init()
 
@@ -30,9 +31,6 @@ class DefaultButton:
                  text: str = '', text_color: tuple[int, int, int] or str = (255, 255, 255),
                  text_size: int = 36,
                  group: ButtonGroup = None) -> None:
-        self._x, self._y = pos
-        self._width = width
-        self._height = height
         self._text = text
         self._text_color = text_color
         self._sound = None
@@ -85,3 +83,30 @@ class DefaultButton:
             if self._sound:
                 self._sound.play()
             pg.event.post(pg.event.Event(pg.USEREVENT, button=self))
+
+
+class Slider:
+    def __init__(self, pos: tuple[int, int], width: int, height: int,
+                 slider_color: tuple[int, int, int] or str = (93, 106, 110),
+                 change_color: tuple[int, int, int] or str = (66, 194, 237)):
+        self._rect = pg.rect.Rect(pos[0], pos[1], width, height)
+        self._slider_surf = pg.Surface((self._rect.width, self._rect.height))
+        self._slider_surf.fill(slider_color)
+        self._change_color = change_color
+        self._changed_surf = pg.Surface((self._rect.width, self._rect.height))
+        self._changed_surf.fill(self._change_color)
+
+        self._piece = self._rect.width // 10
+        self.value = 10
+
+    def change(self, value: int) -> None:
+        self.value = value
+        self._changed_surf = pg.Surface((self._piece * self.value, self._rect.height))
+        self._changed_surf.fill(self._change_color)
+
+    def draw(self, screen: pg.Surface) -> None:
+        screen.blit(self._slider_surf, self._rect.topleft)
+        screen.blit(self._changed_surf, self._rect.topleft)
+
+    def get_value(self) -> int:
+        return self.value
