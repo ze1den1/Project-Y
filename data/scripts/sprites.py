@@ -64,7 +64,7 @@ class Enemies:
 
 class Camera:
     # зададим начальный сдвиг камеры
-    def __init__(self):
+    def __init__(self): 
         self.dx = 0
         self.dy = 0
 
