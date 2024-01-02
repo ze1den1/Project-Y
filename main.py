@@ -48,7 +48,6 @@ class Game:
 
     def main_menu(self) -> None:
         screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
-        screen.fill('white')
 
         buttons_group = ButtonGroup()
         interface_sounds = InterfaceSounds()
@@ -74,7 +73,7 @@ class Game:
                 if event.type == pg.USEREVENT and event.button == start_button:
                     run = False
                     self.select_level()
-                elif event.type == pg.USEREVENT and event.button == quit_button:
+                elif (event.type == pg.USEREVENT and event.button == quit_button) or event.type == pg.QUIT:
                     run = False
                     pg.time.delay(500)
                     self._to_quit = True
@@ -84,6 +83,8 @@ class Game:
                 buttons_group.handle(event)
 
             buttons_group.check_hover(pg.mouse.get_pos())
+
+            screen.fill((255, 255, 255))
             buttons_group.draw(screen)
 
             pg.display.update()
@@ -93,7 +94,6 @@ class Game:
 
     def select_level(self) -> None:
         screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
-        screen.fill((255, 255, 255))
 
         preview_img, preview_rect, name_rect, name, name_surf = self.get_preview_values(
             *self.MAPS_DICT[self.current_map % len(self.MAPS_DICT)])
@@ -129,12 +129,17 @@ class Game:
                 elif event.type == pg.USEREVENT and event.button == start:
                     run = False
                     self.game(name)
+
+                if event.type == pg.QUIT:
+                    run = False
+                    self.terminate()
                 buttons_group.handle(event)
+
+            buttons_group.check_hover(pg.mouse.get_pos())
 
             screen.fill((255, 255, 255))
             screen.blit(name_surf, name_rect)
             screen.blit(preview_img, preview_rect)
-            buttons_group.check_hover(pg.mouse.get_pos())
             buttons_group.draw(screen)
             pg.display.update()
 
@@ -149,7 +154,6 @@ class Game:
 
     def settings_menu(self) -> None:
         screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
-        screen.fill('white')
 
         font_surf = self._font.render('UI sounds', True, (0, 0, 0))
 
@@ -226,10 +230,15 @@ class Game:
                     self._interface_volume = value / 10
                     interface_sounds.set_volume(self._interface_volume)
 
+                if event.type == pg.QUIT:
+                    run = False
+                    self.terminate()
+
                 if settings_state == 0:
                     volume_buttons.handle(event)
                 buttons_group.handle(event)
 
+            screen.fill((255, 255, 255))
             if settings_state != -1:
                 screen.blit(states[settings_state], (self.MONITOR_W * 0.22, self.MONITOR_H * 0.05))
                 if settings_state == 0:
@@ -277,7 +286,7 @@ class Game:
                     run = False
                     self._main_run = False
                     self.main_menu()
-                elif event.type == pg.USEREVENT and event.button == quit_from_the_game:
+                elif (event.type == pg.USEREVENT and event.button == quit_from_the_game) or event.type == pg.QUIT:
                     pg.time.delay(500)
                     self.terminate()
                 pause_buttons.handle(event)
@@ -323,6 +332,11 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     self.pause_menu()
+
+                if event.type == pg.QUIT:
+                    self._main_run = False
+                    self.terminate()
+
             self._main_screen.blit(self._field, (0, 0))
 
             self._all_sprites.draw(self._main_screen)
