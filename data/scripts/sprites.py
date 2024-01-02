@@ -9,7 +9,7 @@ class Hero(pg.sprite.Sprite):
     MIN_SPEED = 200
 
     def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int) -> None:
-        super().__init__(game.all_sprites)
+        super().__init__(game._all_sprites)
         self.game = game
         self.rect = self.image.get_rect(center=position)
         self.pos = list(self.rect.center)
@@ -46,7 +46,7 @@ class Hero(pg.sprite.Sprite):
         self.pos += (self.speed * self.direction) / self.fps
         self.rect.center = self.pos
 
-        if pg.sprite.spritecollideany(self, self.game.obstacles):
+        if pg.sprite.spritecollideany(self, self.game._obstacles):
             self.pos = old_pos
 
         self.rect.center = self.pos
