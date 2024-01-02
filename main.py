@@ -2,7 +2,7 @@ import os.path
 import sys
 
 import pygame as pg
-from data.scripts.sprites import Hero
+from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
@@ -21,6 +21,11 @@ class Game:
     HEART_IMG = pg.image.load(os.path.join('data', 'images', 'UI', 'heart.png'))
     HEART_IMG = pg.transform.scale(HEART_IMG, (48, 48))
 
+    IDLE_ANIM = SpriteSheet(pg.image.load('data/doux.png'))
+    IDLE_ANIM = IDLE_ANIM.get_frames(0, 24, 24, 4, new_size=(48, 48), colorkey=(0, 0, 0))
+    MOVE_ANIM = SpriteSheet(pg.image.load('data/move.png'))
+    MOVE_ANIM = MOVE_ANIM.get_frames(0, 24, 24, 6, new_size=(48, 48), colorkey=(0, 0, 0))
+
     MAPS_DICT = {}
     for number, image in enumerate(os.listdir('data/maps/map_previews')):
         MAPS_DICT[number] = (pg.image.load(f'data/maps/map_previews/{image}'), image)
@@ -36,6 +41,8 @@ class Game:
 
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
+        self._creatures = pg.sprite.Group()
+        self._hero = None
 
         self.current_map = 0
 
@@ -306,10 +313,11 @@ class Game:
         player_pos = get_player_pos(map_data)
         self._field = self.get_map_surface(map_data)
         self._main_screen.blit(self._field, (0, 0))
-        Hero(self, player_pos, self.FPS)
+        self._hero = Hero(self, player_pos, self.FPS, 8, self.IDLE_ANIM, self.MOVE_ANIM)
 
     def game(self, lvl_name: str):
         self.restart_game(lvl_name)
+        self._hero: Hero
 
         ui = ButtonGroup()
         ui_sprites = pg.sprite.Group()
@@ -340,7 +348,7 @@ class Game:
             self._main_screen.blit(self._field, (0, 0))
 
             self._all_sprites.draw(self._main_screen)
-            self._all_sprites.update()
+            self._hero.update(self._main_screen)
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
 

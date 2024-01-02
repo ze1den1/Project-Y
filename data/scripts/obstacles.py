@@ -1,5 +1,4 @@
 import pygame as pg
-import os
 from data.scripts.sprites import SpriteSheet
 
 screen = pg.display.set_mode((0, 0))
