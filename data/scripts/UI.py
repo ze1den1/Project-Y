@@ -24,7 +24,9 @@ class ButtonGroup:
 
 
 class DefaultButton:
-    def __init__(self, pos: tuple[int, int], width: int, height: int,
+    STANDARD_SOUND = pg.mixer.Sound('data/sounds/buttons/click.wav')
+
+    def __init__(self, pos: tuple[int or float, int or float], width: int or float, height: int or float,
                  button_img: str, hover_image: str = None,
                  sound: str = None,
                  text: str = '', text_color: tuple[int, int, int] or str = (255, 255, 255),
@@ -55,11 +57,7 @@ class DefaultButton:
         self._rect = self._image.get_rect(center=pos)
 
         if sound is not None:
-            sound_path = os.path.join('data', 'sounds', 'buttons', sound)
-            try:
-                self._sound = pg.mixer.Sound(sound_path)
-            except Exception:
-                raise Exception('Sound file not found')
+            self._sound = self.STANDARD_SOUND
 
         self._is_hovered = False
 
