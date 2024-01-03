@@ -2,7 +2,7 @@ import os.path
 import sys
 
 import pygame as pg
-from data.scripts.sprites import Hero
+from data.scripts.sprites import Hero, Camera
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
@@ -86,7 +86,6 @@ class Game:
 
             screen.fill((255, 255, 255))
             buttons_group.draw(screen)
-
             pg.display.update()
 
         if self._to_quit:
@@ -326,6 +325,7 @@ class Game:
 
         self._main_run = True
         self._to_quit = False
+        camera = Camera()
         while self._main_run:
             clock.tick(self.FPS)
 
@@ -337,15 +337,19 @@ class Game:
                     self._main_run = False
                     self.terminate()
 
+            # изменяем ракурс камеры
+            map_data = get_map_data(f'data/maps/{lvl_name}.dat')
+            player_pos = get_player_pos(map_data)
+            camera.update(Hero(self, player_pos, self.FPS))
+            # обновляем положение всех спрайтов
+            for sprite in self._all_sprites:
+                camera.apply(sprite)
+                self._all_sprites.draw(self._main_screen)
+                pg.display.update()
             self._main_screen.blit(self._field, (0, 0))
 
-            self._all_sprites.draw(self._main_screen)
-            self._all_sprites.update()
-            ui.draw(self._main_screen)
-            ui_sprites.draw(self._main_screen)
-
-            pg.display.update()
-
+        ui.draw(self._main_screen)
+        ui_sprites.draw(self._main_screen)
         if self._to_quit:
             self.terminate()
 
