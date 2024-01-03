@@ -88,7 +88,7 @@ class Slider:
                  change_color: tuple[int, int, int] or str = (66, 194, 237),
                  step: int = 10):
         self._rect = pg.rect.Rect(pos[0], pos[1], width, height)
-        self._slider_surf = pg.Surface((self._rect.width, self._rect.height))
+        self._slider_surf = pg.Surface((self._rect.width - 10, self._rect.height))
         self._slider_surf.fill(slider_color)
         self._change_color = change_color
         self._changed_surf = pg.Surface((self._rect.width, self._rect.height))

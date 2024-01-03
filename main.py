@@ -147,6 +147,11 @@ class Game:
             buttons_group.check_hover(pg.mouse.get_pos())
 
             screen.fill(self.BACKGROUND)
+            pg.draw.polygon(screen, (0, 0, 0), ((preview_rect.topleft[0] - 5, preview_rect.topleft[1] - 5),
+                                                (preview_rect.topright[0] + 5, preview_rect.topright[1] - 5),
+                                                (preview_rect.bottomright[0] + 5, preview_rect.bottomright[1] + 5),
+                                                (preview_rect.bottomleft[0] - 5, preview_rect.bottomleft[1] + 5)),
+                            5)
             screen.blit(name_surf, name_rect)
             screen.blit(preview_img, preview_rect)
             buttons_group.draw(screen)
@@ -351,8 +356,8 @@ class Game:
 
             self._obstacles.draw(self._main_screen)
             self._hero.update(self._main_screen)
-            ui.draw(self._main_screen)
-            ui_sprites.draw(self._main_screen)
+            # ui.draw(self._main_screen)
+            # ui_sprites.draw(self._main_screen)
 
             pg.display.update()
 
