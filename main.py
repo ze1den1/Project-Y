@@ -14,17 +14,19 @@ pg.mixer.init()
 
 class Game:
     FPS = 60
-    BACKGROUND = pg.Color('white')
-    TILE_SIZE = 64
+    BACKGROUND = pg.Color((255, 255, 255))
+    TILE_SIZE = 72
     MONITOR_W = pg.display.Info().current_w
     MONITOR_H = pg.display.Info().current_h
     HEART_IMG = pg.image.load(os.path.join('data', 'images', 'UI', 'heart.png'))
     HEART_IMG = pg.transform.scale(HEART_IMG, (48, 48))
 
-    IDLE_ANIM = SpriteSheet(pg.image.load('data/doux.png'))
-    IDLE_ANIM = IDLE_ANIM.get_frames(0, 24, 24, 4, new_size=(48, 48), colorkey=(0, 0, 0))
-    MOVE_ANIM = SpriteSheet(pg.image.load('data/move.png'))
-    MOVE_ANIM = MOVE_ANIM.get_frames(0, 24, 24, 6, new_size=(48, 48), colorkey=(0, 0, 0))
+    HERO_SPRITESHEET = pg.image.load('data/images/creatures/hero.png')
+    HERO_SPRITESHEET = SpriteSheet(HERO_SPRITESHEET)
+    HERO_IDLE = HERO_SPRITESHEET.get_frames(0, 16, 16, 18, new_size=(64, 64),
+                                            colorkey=(0, 0, 0))
+    HERO_MOVE = HERO_SPRITESHEET.get_frames(1, 16, 16, 2, new_size=(64, 64),
+                                            colorkey=(0, 0, 0))
 
     MAPS_DICT = {}
     for number, image in enumerate(os.listdir('data/maps/map_previews')):
@@ -91,7 +93,7 @@ class Game:
 
             buttons_group.check_hover(pg.mouse.get_pos())
 
-            screen.fill((255, 255, 255))
+            screen.fill(self.BACKGROUND)
             buttons_group.draw(screen)
 
             pg.display.update()
@@ -144,7 +146,7 @@ class Game:
 
             buttons_group.check_hover(pg.mouse.get_pos())
 
-            screen.fill((255, 255, 255))
+            screen.fill(self.BACKGROUND)
             screen.blit(name_surf, name_rect)
             screen.blit(preview_img, preview_rect)
             buttons_group.draw(screen)
@@ -245,7 +247,7 @@ class Game:
                     volume_buttons.handle(event)
                 buttons_group.handle(event)
 
-            screen.fill((255, 255, 255))
+            screen.fill(self.BACKGROUND)
             if settings_state != -1:
                 screen.blit(states[settings_state], (self.MONITOR_W * 0.22, self.MONITOR_H * 0.05))
                 if settings_state == 0:
@@ -304,7 +306,7 @@ class Game:
             pg.display.update()
 
     def restart_game(self, lvl_name: str) -> None:
-        self._main_screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
+        self._main_screen = pg.display.set_mode((0, 0), pg.FULLSCREEN, pg.DOUBLEBUF)
         if self._all_sprites:
             for sprite in self._all_sprites:
                 sprite.kill()
@@ -313,7 +315,7 @@ class Game:
         player_pos = get_player_pos(map_data)
         self._field = self.get_map_surface(map_data)
         self._main_screen.blit(self._field, (0, 0))
-        self._hero = Hero(self, player_pos, self.FPS, 8, self.IDLE_ANIM, self.MOVE_ANIM)
+        self._hero = Hero(self, player_pos, self.FPS, 5, self.HERO_IDLE, self.HERO_MOVE)
 
     def game(self, lvl_name: str):
         self.restart_game(lvl_name)
@@ -347,7 +349,7 @@ class Game:
 
             self._main_screen.blit(self._field, (0, 0))
 
-            self._all_sprites.draw(self._main_screen)
+            self._obstacles.draw(self._main_screen)
             self._hero.update(self._main_screen)
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)

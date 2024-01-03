@@ -2,19 +2,7 @@ from enum import Enum
 import pygame as pg
 
 pg.init()
-TILE_SIZE = 64
-
-
-class Objects(Enum):
-    ROCK = 0
-    COPPER = 1
-    IRON = 2
-    RUBY = 3
-    SAPPHIRE = 4
-    CRATE = 5
-    BARREL = 6
-
-    PLAYER = '@'
+TILE_SIZE = 72
 
 
 obj_dict = {

@@ -6,9 +6,6 @@ pg.init()
 class SpriteSheet:
     def __init__(self, sheet: pg.Surface):
         self.sheet = sheet
-        self.frames = []
-        self._last_frame_time = 0.0
-        self.cur_frame = 0
 
     def cut_image(self, pos: tuple[int, int], width: int, height: int,
                   new_size: tuple[int, int] or None = None, scale: int = 1,
@@ -27,19 +24,42 @@ class SpriteSheet:
 
         return image
 
-    def get_frames(self, row: int, width: int, height: int, frames: int,
+    def get_frames(self, row: int, width: int, height: int, frames_count: int,
                    new_size: tuple[int, int] or None = None, scale: int = 1,
                    colorkey: tuple[int, int, int] or str = None) -> list[pg.Surface]:
-        self.frames = [self.cut_image((0 + width * i, height * row), width, height,
-                                      new_size=new_size, scale=scale, colorkey=colorkey) for i in range(frames)]
+        """Get the animation frames from a row of SpriteSheet"""
+        frames = [self.cut_image((0 + width * i, height * row), width, height,
+                                 new_size=new_size, scale=scale, colorkey=colorkey) for i in range(frames_count)]
 
-        return self.frames
+        return frames
+
+    @staticmethod
+    def resize(images: pg.Surface or list[pg.Surface], scale: int = 1,
+               new_size: tuple[int, int, int] or None = None,
+               colorkey: tuple[int, int, int] or str = None) -> list[pg.Surface] or pg.Surface:
+        upscaled_images = []
+        if isinstance(images, pg.Surface):
+            images = [images]
+        for image in images:
+            if new_size is not None:
+                image = pg.transform.scale(image, new_size[0] * scale, new_size[1] * scale)
+            else:
+                image = pg.transform.scale(image, (image.get_width() * scale, image.get_height() * scale))
+            if colorkey is not None:
+                image.set_colorkey(colorkey)
+
+            if len(images) == 1:
+                return image
+            else:
+                upscaled_images.append(image)
+
+        return upscaled_images
 
 
 class Hero(pg.sprite.Sprite):
     image = pg.Surface((24, 24))
     MAX_SPEED = 400
-    MIN_SPEED = 200
+    MIN_SPEED = 100
 
     def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int,
                  animation_speed: float, idle_animation: list[pg.Surface], move_animation: list[pg.Surface]) -> None:
@@ -49,7 +69,7 @@ class Hero(pg.sprite.Sprite):
 
         self.rect = self.image.get_rect(center=position)
         self.pos = list(self.rect.center)
-        self.speed = 200
+        self.speed = 100
         self.direction = pg.math.Vector2()
         self._is_move = False
 
@@ -88,6 +108,8 @@ class Hero(pg.sprite.Sprite):
     def update(self, screen: pg.Surface) -> None:
         self.update_direction()
         if not (any(self.direction)):
+            if self.speed > self.MIN_SPEED:
+                self.speed -= 400 / self.fps
             self.do_animation(self._idle_animation)
             self.draw(screen)
             return
@@ -102,13 +124,8 @@ class Hero(pg.sprite.Sprite):
         if pg.sprite.spritecollideany(self, self.game._obstacles):
             self.pos = old_pos
 
-        self.rect.center = self.pos
-        if (self.speed < self.MAX_SPEED
-                and (self.direction.x != 0 or self.direction.y != 0)):
-            self.speed += 100 / self.fps
-
-        elif self.direction.x == 0 and self.direction.y == 0 and self.speed > self.MIN_SPEED:
-            self.speed -= 400 / self.fps
+        if self.speed < self.MAX_SPEED:
+            self.speed += 200 / self.fps
         self.do_animation(self._move_animation)
         self.draw(screen)
 
