@@ -34,7 +34,7 @@ class SimpleObject(pg.sprite.Sprite):
     TILE_SIZE = 72
 
     def __init__(self, game: 'main.Game', obst_type: int, pos_x: int, pos_y: int) -> None:
-        super().__init__(game._all_sprites, game._obstacles)
+        super().__init__(game._camera_group, game._obstacles)
         if obst_type == Objects.ROCK:
             self.image = random.choice(ROCKS)
         elif Objects.COPPER <= obst_type <= Objects.SAPPHIRE:

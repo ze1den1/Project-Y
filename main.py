@@ -7,13 +7,14 @@ from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
 from data.scripts.sounds import InterfaceSounds, Music
+from data.scripts.camera import CameraGroup
 
 pg.init()
 pg.mixer.init()
 
 
 class Game:
-    FPS = 60
+    FPS = 240
     BACKGROUND = pg.Color((255, 255, 255))
     TILE_SIZE = 72
     MONITOR_W = pg.display.Info().current_w
@@ -44,6 +45,8 @@ class Game:
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
         self._creatures = pg.sprite.Group()
+        self._camera_group = CameraGroup(self)
+
         self._hero = None
 
         self.current_map = 0
@@ -354,10 +357,11 @@ class Game:
 
             self._main_screen.blit(self._field, (0, 0))
 
-            self._obstacles.draw(self._main_screen)
-            self._hero.update(self._main_screen)
-            # ui.draw(self._main_screen)
-            # ui_sprites.draw(self._main_screen)
+            self._camera_group.custom_draw(self._hero, self._main_screen)
+            # self._obstacles.draw(self._main_screen)
+            # self._hero.update(self._main_screen)
+            ui.draw(self._main_screen)
+            ui_sprites.draw(self._main_screen)
 
             pg.display.update()
 
