@@ -4,7 +4,7 @@ import sys
 import pygame as pg
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
-from data.scripts.obstacles import SimpleObject
+from data.scripts.obstacles import SimpleObject, Border, Objects, Chest
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
 from data.scripts.sounds import InterfaceSounds, Music
 from data.scripts.camera import CameraGroup
@@ -44,6 +44,8 @@ class Game:
 
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
+        self._chests = []
+        self._borders = []
         self._creatures = pg.sprite.Group()
         self._camera_group = CameraGroup(self)
 
@@ -323,6 +325,14 @@ class Game:
         player_pos = get_player_pos(map_data)
         self._field = self.get_map_surface(map_data)
         self._main_screen.blit(self._field, (0, 0))
+
+        map_width = len(map_data[0]) * self.TILE_SIZE
+        map_height = len(map_data) * self.TILE_SIZE
+        self._borders.append(Border(self, -30, map_width + 30, -30, -30))  # Top
+        self._borders.append(Border(self, -30, map_width + 30, map_height + 30, map_height + 30))  # Bot
+        self._borders.append(Border(self, -30, -30, -30, map_height + 30))  # Left
+        self._borders.append(Border(self, map_width + 30, map_width + 30, -30, map_height + 30))  # Right
+
         self._hero = Hero(self, player_pos, self.FPS, 5, self.HERO_IDLE, self.HERO_MOVE)
 
     def game(self, lvl_name: str):
@@ -356,8 +366,14 @@ class Game:
                     self.terminate()
 
             self._main_screen.blit(self._field, (0, 0))
+            for sprite in self._borders:
+                self._main_screen.blit(sprite.image, sprite.rect.topleft)
+            for chest in self._chests:
+                if chest.check_position(self._hero):
+                    chest.show_hint((chest.rect.centerx, chest.rect.top - 50), self._main_screen)
 
             self._camera_group.custom_draw(self._hero, self._main_screen)
+
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
 
@@ -375,7 +391,10 @@ class Game:
         for y in range(len(data)):
             for x in range(len(data[0])):
                 if data[y][x].isdigit():
-                    SimpleObject(self, int(data[y][x]), x, y)
+                    if int(data[y][x]) == Objects.CHEST:
+                        self._chests.append(Chest(self, x, y))
+                    else:
+                        SimpleObject(self, int(data[y][x]), x, y)
         return lvl_map
 
     @staticmethod
