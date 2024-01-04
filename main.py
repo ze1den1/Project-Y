@@ -14,7 +14,7 @@ pg.mixer.init()
 
 
 class Game:
-    FPS = 240
+    FPS = 60
     BACKGROUND = pg.Color((255, 255, 255))
     TILE_SIZE = 72
     MONITOR_W = pg.display.Info().current_w
@@ -358,8 +358,6 @@ class Game:
             self._main_screen.blit(self._field, (0, 0))
 
             self._camera_group.custom_draw(self._hero, self._main_screen)
-            # self._obstacles.draw(self._main_screen)
-            # self._hero.update(self._main_screen)
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
 

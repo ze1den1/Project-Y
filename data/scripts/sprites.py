@@ -58,7 +58,7 @@ class SpriteSheet:
 
 class Hero(pg.sprite.Sprite):
     image = pg.Surface((24, 24))
-    SPEED = 3
+    SPEED = 6
 
     def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int,
                  animation_speed: float, idle_animation: list[pg.Surface], move_animation: list[pg.Surface]) -> None:
