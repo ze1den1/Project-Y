@@ -15,6 +15,10 @@ class CameraGroup(pg.sprite.Group):
         self.offset.x = target.rect.centerx - self.half_w
         self.offset.y = target.rect.centery - self.half_h
 
+    def get_offset(self, target: Hero) -> pg.Vector2:
+        self.center_camera(target)
+        return self.offset
+
     def custom_draw(self, player: Hero, screen: pg.Surface) -> None:
         self.center_camera(player)
         player.update(screen, self.offset)

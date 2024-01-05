@@ -4,7 +4,7 @@ import sys
 import pygame as pg
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
-from data.scripts.obstacles import SimpleObject, Border, Objects, Chest
+from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
 from data.scripts.sounds import InterfaceSounds, Music
 from data.scripts.camera import CameraGroup
@@ -28,6 +28,8 @@ class Game:
                                             colorkey=(0, 0, 0))
     HERO_MOVE = HERO_SPRITESHEET.get_frames(1, 16, 16, 2, new_size=(64, 64),
                                             colorkey=(0, 0, 0))
+    HERO_HIT = HERO_SPRITESHEET.get_frames(2, 16, 16, 9, new_size=(64, 64),
+                                           colorkey=(0, 0, 0))
 
     MAPS_DICT = {}
     for number, image in enumerate(os.listdir('data/maps/map_previews')):
@@ -44,6 +46,7 @@ class Game:
 
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
+        self._breakable = pg.sprite.Group()
         self._chests = []
         self._borders = []
         self._creatures = pg.sprite.Group()
@@ -333,7 +336,8 @@ class Game:
         self._borders.append(Border(self, -30, -30, -30, map_height + 30))  # Left
         self._borders.append(Border(self, map_width + 30, map_width + 30, -30, map_height + 30))  # Right
 
-        self._hero = Hero(self, player_pos, self.FPS, 5, self.HERO_IDLE, self.HERO_MOVE)
+        self._hero = Hero(self, player_pos, self.FPS, 5,
+                          self.HERO_IDLE, self.HERO_MOVE, self.HERO_HIT)
 
     def game(self, lvl_name: str):
         self.restart_game(lvl_name)
@@ -368,11 +372,22 @@ class Game:
             self._main_screen.blit(self._field, (0, 0))
             for sprite in self._borders:
                 self._main_screen.blit(sprite.image, sprite.rect.topleft)
+            self._camera_group.custom_draw(self._hero, self._main_screen)
+
             for chest in self._chests:
                 if chest.check_position(self._hero):
-                    chest.show_hint((chest.rect.centerx, chest.rect.top - 50), self._main_screen)
+                    offset = self._camera_group.get_offset(self._hero)
+                    offset_pos = chest.rect.topleft - offset
+                    chest.show_hint((int(offset_pos.x) + (chest.rect.w >> 1),
+                                     int(offset_pos.y) - 50), self._main_screen)
+                    chest.open_chest()
 
-            self._camera_group.custom_draw(self._hero, self._main_screen)
+            for obstacle in self._breakable:
+                offset = self._camera_group.get_offset(self._hero)
+                offset_pos = obstacle.rect.topleft - offset
+                if (obstacle.check_position(self._hero)
+                        and self._hero.check_hit(offset_pos, obstacle.rect.w, pg.mouse.get_pos())):
+                    obstacle.kill()
 
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
@@ -393,8 +408,10 @@ class Game:
                 if data[y][x].isdigit():
                     if int(data[y][x]) == Objects.CHEST:
                         self._chests.append(Chest(self, x, y))
+                    elif int(data[y][x]) == Objects.CRATE:
+                        Crate(self, x, y, self._breakable)
                     else:
-                        SimpleObject(self, int(data[y][x]), x, y)
+                        SimpleObject(self, int(data[y][x]), x, y, self._breakable)
         return lvl_map
 
     @staticmethod

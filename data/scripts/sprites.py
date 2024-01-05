@@ -59,9 +59,10 @@ class SpriteSheet:
 class Hero(pg.sprite.Sprite):
     image = pg.Surface((24, 24))
     SPEED = 6
+    MOVE_KEYS = [pg.K_UP, pg.K_w, pg.K_DOWN, pg.K_s, pg.K_RIGHT, pg.K_d, pg.K_LEFT, pg.K_a]
 
     def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int,
-                 animation_speed: float, idle_animation: list[pg.Surface], move_animation: list[pg.Surface]) -> None:
+                 animation_speed: float, *animation) -> None:
         super().__init__(game._all_sprites, game._creatures)
         self.fps = fps
         self.game = game
@@ -71,6 +72,8 @@ class Hero(pg.sprite.Sprite):
         self.direction = pg.math.Vector2()
         self._is_move = False
 
+        self._mouse_click = False
+
         self._offset = None
         self._offset_pos = None
 
@@ -78,16 +81,21 @@ class Hero(pg.sprite.Sprite):
         self._cur_frame = 0
         self._animation_speed = animation_speed
         self._last_direction = 1
-        self._idle_animation = idle_animation
-        self._move_animation = move_animation
+        self._idle_animation, self._move_animation, self._hit_animation = animation
 
         self._hp = 100
 
     def get_hp(self) -> int:
         return self._hp
 
-    def update_direction(self) -> None:
+    def input_check(self) -> None:
         keys = pg.key.get_pressed()
+        mouse = pg.mouse.get_pressed()
+
+        if mouse[0]:
+            self._mouse_click = True
+        else:
+            self._mouse_click = False
 
         if keys[pg.K_UP] or keys[pg.K_w]:
             self.direction.y = -1
@@ -103,15 +111,27 @@ class Hero(pg.sprite.Sprite):
         else:
             self.direction.x = 0
 
-        if self.direction.x != 0:
-            self._last_direction = int(self.direction.x)
+        if self.direction.x != 0 or self._mouse_click:
+            if self._mouse_click and pg.mouse.get_pos()[0] > (self.rect.topleft - self._offset)[0]:
+                self._last_direction = 1
+            elif self._mouse_click and pg.mouse.get_pos()[0] < (self.rect.topleft - self._offset)[0]:
+                self._last_direction = -1
+            else:
+                self._last_direction = int(self.direction.x)
+
+    def check_hit(self, topleft: tuple[int, int], side: int, mouse_pos: tuple[int, int]) -> bool:
+        obj_rect = pg.Rect(*topleft, side, side)
+        return self._mouse_click and obj_rect.collidepoint(mouse_pos)
 
     def update(self, screen: pg.Surface, offset: pg.Vector2) -> None:
         self._offset = offset
 
-        self.update_direction()
-        if not (any(self.direction)):
-            self.do_animation(self._idle_animation)
+        self.input_check()
+        if not (any(self.direction)) or self._mouse_click:
+            if self._mouse_click:
+                self.do_animation(self._hit_animation)
+            else:
+                self.do_animation(self._idle_animation)
 
             self.draw(screen)
             return
