@@ -28,7 +28,7 @@ class Game:
                                             colorkey=(0, 0, 0))
     HERO_MOVE = HERO_SPRITESHEET.get_frames(1, 16, 16, 2, new_size=(64, 64),
                                             colorkey=(0, 0, 0))
-    HERO_HIT = HERO_SPRITESHEET.get_frames(2, 16, 16, 9, new_size=(64, 64),
+    HERO_HIT = HERO_SPRITESHEET.get_frames(2, 16, 16, 8, new_size=(64, 64),
                                            colorkey=(0, 0, 0))
 
     MAPS_DICT = {}
@@ -388,6 +388,7 @@ class Game:
                 if (obstacle.check_position(self._hero)
                         and self._hero.check_hit(offset_pos, obstacle.rect.w, pg.mouse.get_pos())):
                     obstacle.kill()
+                    break
 
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
