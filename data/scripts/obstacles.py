@@ -1,7 +1,8 @@
 from enum import IntEnum
 
 import pygame as pg
-from data.scripts.sprites import SpriteSheet, Hero
+from data.scripts.sprites import SpriteSheet
+from data.scripts.particles import create_sparks, Materials
 from data.scripts.UI import DefaultButton
 import random
 
@@ -33,6 +34,7 @@ CHEST_OPEN = sheet.cut_image((16, 48), 16, 16, new_size=(72, 72), colorkey=(0, 0
 
 class SimpleObject(pg.sprite.Sprite):
     TILE_SIZE = 72
+    MATERIAL = Materials.ROCK
 
     def __init__(self, game: 'main.Game', obst_type: int, pos_x: int, pos_y: int, *groups) -> None:
         super().__init__(game._camera_group, game._obstacles, game._all_sprites, *groups)
@@ -56,8 +58,10 @@ class SimpleObject(pg.sprite.Sprite):
             return True
         return False
 
-    def hit(self):
-        pass
+    def hit(self, game: 'main.Game', pos: tuple[int, int]):
+        create_sparks(game, pos, 600, self.MATERIAL)
+        self._hp -= 1
+        self.check_brake()
 
     def check_brake(self) -> None:
         if self._hp <= 0:
@@ -82,8 +86,11 @@ class Chest(SimpleObject):
             
             
 class Crate(SimpleObject):
+    MATERIAL = Materials.WOOD
+
     def __init__(self, game: 'main.Game', pos_x: int, pos_y: int, *groups) -> None:
         super().__init__(game, Objects.CRATE, pos_x, pos_y, *groups)
+        self._hp = 2
 
 
 class Border(pg.sprite.Sprite):

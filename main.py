@@ -5,6 +5,7 @@ import pygame as pg
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
+from data.scripts.particles import Particles
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
 from data.scripts.sounds import InterfaceSounds, Music
 from data.scripts.camera import CameraGroup
@@ -47,6 +48,7 @@ class Game:
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
         self._breakable = pg.sprite.Group()
+        self._particles = Particles()
         self._chests = []
         self._borders = []
         self._creatures = pg.sprite.Group()
@@ -355,6 +357,7 @@ class Game:
                           number_color=(255, 255, 255), group=ui)
 
         clock = pg.time.Clock()
+        prev_hit = pg.time.get_ticks()
 
         self._main_run = True
         self._to_quit = False
@@ -383,12 +386,20 @@ class Game:
                     chest.open_chest()
 
             for obstacle in self._breakable:
+                obstacle: SimpleObject
+
                 offset = self._camera_group.get_offset(self._hero)
-                offset_pos = obstacle.rect.topleft - offset
+                obstacle_offset = obstacle.rect.topleft - offset
                 if (obstacle.check_position(self._hero)
-                        and self._hero.check_hit(offset_pos, obstacle.rect.w, pg.mouse.get_pos())):
-                    obstacle.kill()
+                        and self._hero.check_hit(obstacle_offset, obstacle.rect.w, pg.mouse.get_pos())
+                        and pg.time.get_ticks() - prev_hit > 800):
+                    obstacle.hit(self, (obstacle_offset[0] + (obstacle.rect.w >> 1),
+                                        obstacle_offset[1] + (obstacle.rect.h >> 1)))
+                    prev_hit = pg.time.get_ticks()
                     break
+
+            if self._particles.sprites():
+                self._particles.update(self._main_screen)
 
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)

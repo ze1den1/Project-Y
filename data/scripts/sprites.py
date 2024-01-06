@@ -94,6 +94,7 @@ class Hero(pg.sprite.Sprite):
         self._current_animation = Animations.IDLE_ANIMATION
 
         self._hp = 100
+        self._inventory = [[None, None, None], [None, None, None]]
 
     def get_hp(self) -> int:
         return self._hp
