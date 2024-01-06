@@ -1,6 +1,14 @@
+from enum import IntEnum
+
 import pygame as pg
 
 pg.init()
+
+
+class Animations(IntEnum):
+    IDLE_ANIMATION = 0
+    MOVE_ANIMATION = 1
+    HIT_ANIMATION = 2
 
 
 class SpriteSheet:
@@ -58,35 +66,47 @@ class SpriteSheet:
 
 class Hero(pg.sprite.Sprite):
     image = pg.Surface((24, 24))
-    MAX_SPEED = 400
-    MIN_SPEED = 100
+    SPEED = 6
+    MOVE_KEYS = [pg.K_UP, pg.K_w, pg.K_DOWN, pg.K_s, pg.K_RIGHT, pg.K_d, pg.K_LEFT, pg.K_a]
 
     def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int,
-                 animation_speed: float, idle_animation: list[pg.Surface], move_animation: list[pg.Surface]) -> None:
+                 animation_speed: float, *animation) -> None:
         super().__init__(game._all_sprites, game._creatures)
         self.fps = fps
         self.game = game
 
         self.rect = self.image.get_rect(center=position)
         self.pos = list(self.rect.center)
-        self.speed = 100
         self.direction = pg.math.Vector2()
         self._is_move = False
+
+        self._mouse_click = False
+        self._is_animation_loop = False
+
+        self._offset = None
+        self._offset_pos = None
 
         self._last_frame_time = 0.0
         self._cur_frame = 0
         self._animation_speed = animation_speed
         self._last_direction = 1
-        self._idle_animation = idle_animation
-        self._move_animation = move_animation
+        self._animations = animation
+        self._current_animation = Animations.IDLE_ANIMATION
 
         self._hp = 100
+        self._inventory = [[None, None, None], [None, None, None]]
 
     def get_hp(self) -> int:
         return self._hp
 
-    def update_direction(self) -> None:
+    def input_check(self) -> None:
         keys = pg.key.get_pressed()
+        mouse = pg.mouse.get_pressed()
+
+        if mouse[2]:
+            self._mouse_click = True
+        else:
+            self._mouse_click = False
 
         if keys[pg.K_UP] or keys[pg.K_w]:
             self.direction.y = -1
@@ -102,15 +122,36 @@ class Hero(pg.sprite.Sprite):
         else:
             self.direction.x = 0
 
-        if self.direction.x != 0:
-            self._last_direction = int(self.direction.x)
+        if self.direction.x != 0 or self._mouse_click:
+            if self._mouse_click and pg.mouse.get_pos()[0] > (self.rect.topleft - self._offset)[0]:
+                self._last_direction = 1
+            elif self._mouse_click and pg.mouse.get_pos()[0] < (self.rect.topleft - self._offset)[0]:
+                self._last_direction = -1
+            else:
+                self._last_direction = int(self.direction.x)
 
-    def update(self, screen: pg.Surface) -> None:
-        self.update_direction()
-        if not (any(self.direction)):
-            if self.speed > self.MIN_SPEED:
-                self.speed -= 400 / self.fps
-            self.do_animation(self._idle_animation)
+    def check_hit(self, topleft: tuple[int, int], side: int, mouse_pos: tuple[int, int]) -> bool:
+        mouse = pg.mouse.get_pressed()
+
+        obj_rect = pg.Rect(*topleft, side, side)
+        return self._mouse_click and obj_rect.collidepoint(mouse_pos) and mouse[2]
+
+    def update(self, screen: pg.Surface, offset: pg.Vector2) -> None:
+        self._offset = offset
+
+        if self._is_animation_loop:
+            self.do_animation(self._animations[self._current_animation])
+            self.draw(screen)
+            return
+
+        self.input_check()
+        if not (any(self.direction)) or self._mouse_click:
+            if self._mouse_click:
+                self._current_animation = Animations.HIT_ANIMATION
+                self._is_animation_loop = True
+            else:
+                self._current_animation = Animations.IDLE_ANIMATION
+
             self.draw(screen)
             return
         self.move(screen)
@@ -118,23 +159,20 @@ class Hero(pg.sprite.Sprite):
     def move(self, screen: pg.Surface) -> None:
         old_pos = self.pos.copy()
 
-        self.pos += (self.speed * self.direction) / self.fps
+        self.pos += (self.SPEED * self.direction)
         self.rect.center = self.pos
 
         if pg.sprite.spritecollideany(self, self.game._obstacles):
             self.pos = old_pos
 
-        if self.speed < self.MAX_SPEED:
-            self.speed += 200 / self.fps
-        self.do_animation(self._move_animation)
+        self._current_animation = Animations.MOVE_ANIMATION
         self.draw(screen)
 
     def draw(self, screen: pg.Surface) -> None:
-        self.change_image()
-        self.rect = self.image.get_rect(center=self.pos)
-        screen.blit(self.image, self.rect)
+        self.do_animation(self._animations[self._current_animation])
+        screen.blit(self.image, self._offset_pos)
 
-    def change_image(self) -> None:
+    def flip_image(self) -> None:
         if int(self._last_direction) == -1:
             self.image = pg.transform.flip(self.image, 1, 0)
             self.image.set_colorkey((0, 0, 0))
@@ -145,6 +183,13 @@ class Hero(pg.sprite.Sprite):
         self._cur_frame = (self._cur_frame + diff_frames) % len(frames)
         self.image = frames[self._cur_frame]
         self._last_frame_time = frame_time
+
+        if self._is_animation_loop and self._cur_frame % len(frames) == len(frames) - 1:
+            self._is_animation_loop = False
+
+        self.flip_image()
+        self.rect = self.image.get_rect(center=self.rect.center)
+        self._offset_pos = self.rect.topleft - self._offset
 
 
 class Enemies:

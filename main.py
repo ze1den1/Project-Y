@@ -4,9 +4,11 @@ import sys
 import pygame as pg
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
-from data.scripts.obstacles import SimpleObject
+from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
+from data.scripts.particles import Particles
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
 from data.scripts.sounds import InterfaceSounds, Music
+from data.scripts.camera import CameraGroup
 
 pg.init()
 pg.mixer.init()
@@ -27,6 +29,8 @@ class Game:
                                             colorkey=(0, 0, 0))
     HERO_MOVE = HERO_SPRITESHEET.get_frames(1, 16, 16, 2, new_size=(64, 64),
                                             colorkey=(0, 0, 0))
+    HERO_HIT = HERO_SPRITESHEET.get_frames(2, 16, 16, 8, new_size=(64, 64),
+                                           colorkey=(0, 0, 0))
 
     MAPS_DICT = {}
     for number, image in enumerate(os.listdir('data/maps/map_previews')):
@@ -43,7 +47,13 @@ class Game:
 
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
+        self._breakable = pg.sprite.Group()
+        self._particles = Particles()
+        self._chests = []
+        self._borders = []
         self._creatures = pg.sprite.Group()
+        self._camera_group = CameraGroup(self)
+
         self._hero = None
 
         self.current_map = 0
@@ -147,6 +157,11 @@ class Game:
             buttons_group.check_hover(pg.mouse.get_pos())
 
             screen.fill(self.BACKGROUND)
+            pg.draw.polygon(screen, (0, 0, 0), ((preview_rect.topleft[0] - 5, preview_rect.topleft[1] - 5),
+                                                (preview_rect.topright[0] + 5, preview_rect.topright[1] - 5),
+                                                (preview_rect.bottomright[0] + 5, preview_rect.bottomright[1] + 5),
+                                                (preview_rect.bottomleft[0] - 5, preview_rect.bottomleft[1] + 5)),
+                            5)
             screen.blit(name_surf, name_rect)
             screen.blit(preview_img, preview_rect)
             buttons_group.draw(screen)
@@ -315,7 +330,16 @@ class Game:
         player_pos = get_player_pos(map_data)
         self._field = self.get_map_surface(map_data)
         self._main_screen.blit(self._field, (0, 0))
-        self._hero = Hero(self, player_pos, self.FPS, 5, self.HERO_IDLE, self.HERO_MOVE)
+
+        map_width = len(map_data[0]) * self.TILE_SIZE
+        map_height = len(map_data) * self.TILE_SIZE
+        self._borders.append(Border(self, -30, map_width + 30, -30, -30))  # Top
+        self._borders.append(Border(self, -30, map_width + 30, map_height + 30, map_height + 30))  # Bot
+        self._borders.append(Border(self, -30, -30, -30, map_height + 30))  # Left
+        self._borders.append(Border(self, map_width + 30, map_width + 30, -30, map_height + 30))  # Right
+
+        self._hero = Hero(self, player_pos, self.FPS, 5,
+                          self.HERO_IDLE, self.HERO_MOVE, self.HERO_HIT)
 
     def game(self, lvl_name: str):
         self.restart_game(lvl_name)
@@ -333,6 +357,7 @@ class Game:
                           number_color=(255, 255, 255), group=ui)
 
         clock = pg.time.Clock()
+        prev_hit = pg.time.get_ticks()
 
         self._main_run = True
         self._to_quit = False
@@ -348,9 +373,34 @@ class Game:
                     self.terminate()
 
             self._main_screen.blit(self._field, (0, 0))
+            for sprite in self._borders:
+                self._main_screen.blit(sprite.image, sprite.rect.topleft)
+            self._camera_group.custom_draw(self._hero, self._main_screen)
 
-            self._obstacles.draw(self._main_screen)
-            self._hero.update(self._main_screen)
+            for chest in self._chests:
+                if chest.check_position(self._hero):
+                    offset = self._camera_group.get_offset(self._hero)
+                    offset_pos = chest.rect.topleft - offset
+                    chest.show_hint((int(offset_pos.x) + (chest.rect.w >> 1),
+                                     int(offset_pos.y) - 50), self._main_screen)
+                    chest.open_chest()
+
+            for obstacle in self._breakable:
+                obstacle: SimpleObject
+
+                offset = self._camera_group.get_offset(self._hero)
+                obstacle_offset = obstacle.rect.topleft - offset
+                if (obstacle.check_position(self._hero)
+                        and self._hero.check_hit(obstacle_offset, obstacle.rect.w, pg.mouse.get_pos())
+                        and pg.time.get_ticks() - prev_hit > 800):
+                    obstacle.hit(self, (obstacle_offset[0] + (obstacle.rect.w >> 1),
+                                        obstacle_offset[1] + (obstacle.rect.h >> 1)))
+                    prev_hit = pg.time.get_ticks()
+                    break
+
+            if self._particles.sprites():
+                self._particles.update(self._main_screen)
+
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
 
@@ -368,7 +418,12 @@ class Game:
         for y in range(len(data)):
             for x in range(len(data[0])):
                 if data[y][x].isdigit():
-                    SimpleObject(self, int(data[y][x]), x, y)
+                    if int(data[y][x]) == Objects.CHEST:
+                        self._chests.append(Chest(self, x, y))
+                    elif int(data[y][x]) == Objects.CRATE:
+                        Crate(self, x, y, self._breakable)
+                    else:
+                        SimpleObject(self, int(data[y][x]), x, y, self._breakable)
         return lvl_map
 
     @staticmethod
