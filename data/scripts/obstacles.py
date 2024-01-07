@@ -17,7 +17,6 @@ class Objects(IntEnum):
     CRATE = 6
 
 
-screen = pg.display.set_mode((0, 0))
 sheet = pg.image.load('data/images/objects/obstacles.png')
 sheet = SpriteSheet(sheet)
 ROCKS = [sheet.cut_image((0, 0), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0)),

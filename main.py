@@ -1,11 +1,14 @@
 import os.path
+import random
 import sys
 
 import pygame as pg
+pg.display.set_mode((0, 0))
+
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
-from data.scripts.particles import Particles
+from data.scripts.particles import Particles, Snowflake
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
 from data.scripts.sounds import InterfaceSounds, Music
 from data.scripts.camera import CameraGroup
@@ -20,8 +23,11 @@ class Game:
     TILE_SIZE = 72
     MONITOR_W = pg.display.Info().current_w
     MONITOR_H = pg.display.Info().current_h
-    HEART_IMG = pg.image.load(os.path.join('data', 'images', 'UI', 'heart.png'))
-    HEART_IMG = pg.transform.scale(HEART_IMG, (48, 48))
+
+    MENU_BG = pg.transform.scale(pg.image.load('data/images/UI/menu_bg.png'),
+                                 (MONITOR_W, MONITOR_H))
+
+    HEART_IMG = pg.transform.scale(pg.image.load('data/images/UI/heart.png'), (48, 48))
 
     HERO_SPRITESHEET = pg.image.load('data/images/creatures/hero.png')
     HERO_SPRITESHEET = SpriteSheet(HERO_SPRITESHEET)
@@ -70,6 +76,7 @@ class Game:
 
         buttons_group = ButtonGroup()
         interface_sounds = InterfaceSounds()
+        snowflakes = Particles()
 
         start_button = DefaultButton((self.MONITOR_W >> 1, (self.MONITOR_H >> 1) - 120), 300, 150,
                                      'button.png', text='Select Map', text_size=self._font_size,
@@ -86,8 +93,11 @@ class Game:
 
         interface_sounds.set_volume(self._interface_volume)
 
+        clock = pg.time.Clock()
         run = True
         while run:
+            clock.tick(self.FPS)
+
             for event in pg.event.get():
                 if event.type == pg.USEREVENT and event.button == start_button:
                     run = False
@@ -103,7 +113,11 @@ class Game:
 
             buttons_group.check_hover(pg.mouse.get_pos())
 
-            screen.fill(self.BACKGROUND)
+            screen.blit(self.MENU_BG, (0, 0))
+            snowflake = Snowflake(self, (random.randrange(0, self.MONITOR_W - 20), 0), self.FPS)
+            snowflakes.add(snowflake)
+            snowflakes.update(screen)
+
             buttons_group.draw(screen)
 
             pg.display.update()
