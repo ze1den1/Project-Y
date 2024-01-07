@@ -70,10 +70,11 @@ class SimpleObject(pg.sprite.Sprite):
 class Chest(SimpleObject):
     def __init__(self, game: 'main.Game', pos_x: int, pos_y: int, *groups):
         super().__init__(game, Objects.CHEST, pos_x, pos_y, *groups)
+        self.is_open = False
 
     @staticmethod
-    def show_hint(coords: tuple[int, int], screen: pg.Surface) -> None:
-        hint = DefaultButton(coords, 150, 100, 'hint_btn.png',
+    def show_hint(game: 'main.Game', coords: tuple[int, int], screen: pg.Surface) -> None:
+        hint = DefaultButton(coords, 150, 100, game.HINT_BUTTON,
                              text='space', text_size=30)
         hint.draw(screen)
 
@@ -81,6 +82,7 @@ class Chest(SimpleObject):
         keys = pg.key.get_pressed()
 
         if keys[pg.K_SPACE]:
+            self.is_open = True
             self.image = CHEST_OPEN
             
             

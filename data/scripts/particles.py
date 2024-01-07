@@ -1,6 +1,7 @@
 import random
 from enum import IntEnum
 from data.scripts.sprites import SpriteSheet
+from data.scripts.utils import scale_with_colorkey
 import pygame as pg
 
 sheet = pg.image.load('data/images/particles/particles.png')
@@ -10,14 +11,6 @@ sheet = SpriteSheet(sheet)
 class Materials(IntEnum):
     WOOD = 0
     ROCK = 1
-
-
-def scale_with_colorkey(image: pg.Surface, scale: tuple[int, int],
-                        colorkey: tuple[int, int, int] or str) -> pg.Surface:
-    image = pg.transform.scale(image, scale)
-    image.set_colorkey(colorkey)
-
-    return image
 
 
 class Particles(pg.sprite.Group):
@@ -98,14 +91,19 @@ class Snowflake(Particle):
         self.game = game
         self.i = 0
 
+        self._plus_rand = random.randrange(20, 100)
+        self._minus_rand = random.randrange(-100, -20)
+
         self.image = random.choice(self.snowflakes)
 
     def update(self, screen: pg.Surface) -> None:
         self.velocity[1] += self.gravity / self.fps
         if self.i % 120 < 60:
-            self.pos[0] += -100 / self.fps
+            self.pos[0] += self._minus_rand / self.fps
+            self._plus_rand = random.randrange(20, 100)
         else:
-            self.pos[0] += 100 / self.fps
+            self._minus_rand = random.randrange(-100, -20)
+            self.pos[0] += self._plus_rand / self.fps
         self.pos[1] += self.velocity[1] / self.fps
         self.rect.center = self.pos
         self.i += 1

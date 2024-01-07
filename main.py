@@ -3,8 +3,10 @@ import random
 import sys
 
 import pygame as pg
+
 pg.display.set_mode((0, 0))
 
+from data.scripts.utils import load_with_colorkey, scale_with_colorkey
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
@@ -26,11 +28,19 @@ class Game:
 
     MENU_BG = pg.transform.scale(pg.image.load('data/images/UI/menu_bg.png'),
                                  (MONITOR_W, MONITOR_H))
+    START_BUTTON = pg.image.load('data/images/UI/start.png')
+    SETTINGS_BUTTON = pg.image.load('data/images/UI/settings.png')
+    CREDITS_BUTTON = pg.image.load('data/images/UI/credits.png')
+    QUIT_BUTTON = pg.image.load('data/images/UI/quit.png')
 
-    HEART_IMG = pg.transform.scale(pg.image.load('data/images/UI/heart.png'), (48, 48))
+    BUTTON = load_with_colorkey('data/images/UI/button.png', (0, 0, 0))
+    HINT_BUTTON = load_with_colorkey('data/images/UI/hint_btn.png', (0, 0, 0))
+    LEFT_ARROW = pg.image.load('data/images/UI/left_arrow.png')
+    RIGHT_ARROW = pg.image.load('data/images/UI/right_arrow.png')
 
-    HERO_SPRITESHEET = pg.image.load('data/images/creatures/hero.png')
-    HERO_SPRITESHEET = SpriteSheet(HERO_SPRITESHEET)
+    HEART_IMG = scale_with_colorkey(pg.image.load('data/images/UI/heart.png'), (48, 48), (0, 0, 0))
+
+    HERO_SPRITESHEET = SpriteSheet(pg.image.load('data/images/creatures/hero.png'))
     HERO_IDLE = HERO_SPRITESHEET.get_frames(0, 16, 16, 18, new_size=(64, 64),
                                             colorkey=(0, 0, 0))
     HERO_MOVE = HERO_SPRITESHEET.get_frames(1, 16, 16, 2, new_size=(64, 64),
@@ -78,17 +88,28 @@ class Game:
         interface_sounds = InterfaceSounds()
         snowflakes = Particles()
 
-        start_button = DefaultButton((self.MONITOR_W >> 1, (self.MONITOR_H >> 1) - 120), 300, 150,
-                                     'button.png', text='Select Map', text_size=self._font_size,
-                                     sound='click.wav', group=buttons_group)
+        start_button = DefaultButton((self.MONITOR_W * 0.11 + self.MONITOR_W * 0.09,
+                                      self.MONITOR_H * 0.88 + self.MONITOR_H * 0.04),
+                                     self.MONITOR_W * 0.19, self.MONITOR_H * 0.08,
+                                     self.START_BUTTON, sound='click.wav', group=buttons_group)
         interface_sounds.add(start_button._sound)
-        settings_button = DefaultButton((self.MONITOR_W >> 1, (self.MONITOR_H >> 1)), 300, 150,
-                                        'button.png', text='Settings', text_size=self._font_size,
-                                        sound='click.wav', group=buttons_group)
+        settings_button = DefaultButton((start_button._rect.right + self.MONITOR_W * 0.008
+                                         + (start_button._rect.w >> 1),
+                                         self.MONITOR_H * 0.88 + self.MONITOR_H * 0.04),
+                                        self.MONITOR_W * 0.19, self.MONITOR_H * 0.08,
+                                        self.SETTINGS_BUTTON, sound='click.wav', group=buttons_group)
         interface_sounds.add(settings_button._sound)
-        quit_button = DefaultButton((self.MONITOR_W >> 1, (self.MONITOR_H >> 1) + 120), 300, 150,
-                                    'button.png', text='Quit', text_size=self._font_size,
-                                    sound='click.wav', group=buttons_group)
+        credits_button = DefaultButton((settings_button._rect.right + self.MONITOR_W * 0.008
+                                        + (settings_button._rect.w >> 1),
+                                        self.MONITOR_H * 0.88 + self.MONITOR_H * 0.04),
+                                       self.MONITOR_W * 0.19, self.MONITOR_H * 0.08,
+                                       self.CREDITS_BUTTON, sound='click.wav', group=buttons_group)
+        interface_sounds.add(credits_button._sound)
+        quit_button = DefaultButton((credits_button._rect.right + self.MONITOR_W * 0.008
+                                     + (credits_button._rect.w >> 1),
+                                     self.MONITOR_H * 0.88 + self.MONITOR_H * 0.04),
+                                    self.MONITOR_W * 0.19, self.MONITOR_H * 0.08,
+                                    self.QUIT_BUTTON, sound='click.wav', group=buttons_group)
         interface_sounds.add(quit_button._sound)
 
         interface_sounds.set_volume(self._interface_volume)
@@ -109,6 +130,8 @@ class Game:
                 elif event.type == pg.USEREVENT and event.button == settings_button:
                     run = False
                     self.settings_menu()
+                elif event.type == pg.USEREVENT and event.button == credits_button:
+                    pass
                 buttons_group.handle(event)
 
             buttons_group.check_hover(pg.mouse.get_pos())
@@ -133,16 +156,16 @@ class Game:
 
         buttons_group = ButtonGroup()
         return_btn = DefaultButton((150, 100), 200, 100,
-                                   'button.png', text='Return', text_size=self._font_size,
+                                   self.BUTTON, text='Return', text_size=self._font_size,
                                    sound='click.wav', group=buttons_group)
         next_map = DefaultButton(((self.MONITOR_W >> 1) + (preview_rect.width >> 1) + 30, self.MONITOR_H >> 1),
-                                 self.MONITOR_W * 0.02, 50, 'right_arrow.png', sound='click.wav',
+                                 self.MONITOR_W * 0.02, 50, self.RIGHT_ARROW, sound='click.wav',
                                  group=buttons_group)
         previous_map = DefaultButton(((self.MONITOR_W >> 1) - (preview_rect.width >> 1) - 30, self.MONITOR_H >> 1),
-                                     self.MONITOR_W * 0.02, 50, 'left_arrow.png', sound='click.wav',
+                                     self.MONITOR_W * 0.02, 50, self.LEFT_ARROW, sound='click.wav',
                                      group=buttons_group)
         start = DefaultButton((self.MONITOR_W >> 1, self.MONITOR_H * 0.7),
-                              self.MONITOR_W * 0.1, self.MONITOR_H * 0.1, 'button.png', sound='click.wav',
+                              self.MONITOR_W * 0.1, self.MONITOR_H * 0.1, self.BUTTON, sound='click.wav',
                               group=buttons_group, text='Start', text_size=self._font_size)
 
         run = True
@@ -212,15 +235,15 @@ class Game:
         interface_sounds = InterfaceSounds()
 
         return_btn = DefaultButton((150, 100), 200, 100,
-                                   'button.png', text='Return', text_size=self._font_size,
+                                   self.BUTTON, text='Return', text_size=self._font_size,
                                    sound='click.wav', group=buttons_group)
         interface_sounds.add(return_btn._sound)
         volume_btn = DefaultButton((150, 250), 200, 100,
-                                   'button.png', text='volume', text_size=self._font_size,
+                                   self.BUTTON, text='volume', text_size=self._font_size,
                                    sound='click.wav', group=buttons_group)
         interface_sounds.add(volume_btn._sound)
         video_btn = DefaultButton((150, 400), 200, 100,
-                                  'button.png', text='video', text_size=self._font_size,
+                                  self.BUTTON, text='video', text_size=self._font_size,
                                   sound='click.wav', group=buttons_group)
         interface_sounds.add(video_btn._sound)
 
@@ -232,13 +255,13 @@ class Game:
         decrease_value = DefaultButton((volume_rect.w * 0.35 + volume_rect.topleft[0],
                                         volume_rect.h * 0.12 + volume_rect.topleft[1]),
                                        volume_rect.w * 0.05, 50,
-                                       'left_arrow.png',
+                                       self.LEFT_ARROW,
                                        sound='click.wav', group=volume_buttons)
         interface_sounds.add(decrease_value._sound)
         increase_value = DefaultButton((volume_rect.w * 0.85 + volume_rect.topleft[0],
                                         volume_rect.h * 0.12 + volume_rect.topleft[1]),
                                        volume_rect.w * 0.05, 50,
-                                       'right_arrow.png',
+                                       self.RIGHT_ARROW,
                                        sound='click.wav', group=volume_buttons)
         interface_sounds.add(increase_value._sound)
 
@@ -300,15 +323,15 @@ class Game:
         interface_sounds = InterfaceSounds()
 
         continue_button = DefaultButton((pause_rect.centerx, pause_rect.centery - 200), 200, 100,
-                                        'button.png', text='continue', text_size=self._font_size,
+                                        self.BUTTON, text='continue', text_size=self._font_size,
                                         sound='click.wav', group=pause_buttons)
         interface_sounds.add(continue_button._sound)
         quit_to_menu = DefaultButton((pause_rect.centerx, pause_rect.centery + 200), 200, 100,
-                                     'button.png', text='menu', text_size=self._font_size,
+                                     self.BUTTON, text='menu', text_size=self._font_size,
                                      sound='click.wav', group=pause_buttons)
         interface_sounds.add(quit_to_menu._sound)
         quit_from_the_game = DefaultButton((pause_rect.centerx, pause_rect.centery + 300), 200, 100,
-                                           'button.png', text='exit', text_size=self._font_size,
+                                           self.BUTTON, text='exit', text_size=self._font_size,
                                            sound='click.wav', group=pause_buttons)
         interface_sounds.add(quit_from_the_game._sound)
 
@@ -392,11 +415,11 @@ class Game:
             self._camera_group.custom_draw(self._hero, self._main_screen)
 
             for chest in self._chests:
-                if chest.check_position(self._hero):
+                if chest.check_position(self._hero) and not chest.is_open:
                     offset = self._camera_group.get_offset(self._hero)
                     offset_pos = chest.rect.topleft - offset
-                    chest.show_hint((int(offset_pos.x) + (chest.rect.w >> 1),
-                                     int(offset_pos.y) - 50), self._main_screen)
+                    chest.show_hint(self, (int(offset_pos.x) + (chest.rect.w >> 1),
+                                           int(offset_pos.y) - 50), self._main_screen)
                     chest.open_chest()
 
             for obstacle in self._breakable:
