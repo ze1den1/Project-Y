@@ -27,7 +27,7 @@ class DefaultButton:
     STANDARD_SOUND = pg.mixer.Sound('data/sounds/buttons/click.wav')
 
     def __init__(self, pos: tuple[int or float, int or float], width: int or float, height: int or float,
-                 button_img: pg.Surface, hover_image: str = None,
+                 button_img: pg.Surface, hover_image: pg.Surface = None,
                  sound: str = None,
                  text: str = '', text_color: tuple[int, int, int] or str = (255, 255, 255),
                  text_size: int = 36,
@@ -40,14 +40,8 @@ class DefaultButton:
 
         self._image = pg.transform.scale(button_img, (width, height))
         self._hover_image = self._image
-
         if hover_image is not None:
-            hover_path = os.path.join('data', 'images', 'UI', 'hover', hover_image)
-            try:
-                self._hover_image = pg.image.load(hover_path)
-            except FileNotFoundError:
-                raise FileNotFoundError('Hover image not found')
-            self._hover_image = pg.transform.scale(self._hover_image, (width, height))
+            self._hover_image = pg.transform.scale(hover_image, (width, height))
 
         self._rect = self._image.get_rect(center=pos)
 

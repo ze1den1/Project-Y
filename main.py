@@ -28,10 +28,12 @@ class Game:
 
     MENU_BG = pg.transform.scale(pg.image.load('data/images/UI/menu_bg.png'),
                                  (MONITOR_W, MONITOR_H))
-    START_BUTTON = pg.image.load('data/images/UI/start.png')
-    SETTINGS_BUTTON = pg.image.load('data/images/UI/settings.png')
-    CREDITS_BUTTON = pg.image.load('data/images/UI/credits.png')
-    QUIT_BUTTON = pg.image.load('data/images/UI/quit.png')
+    sheet = SpriteSheet(pg.image.load('data/images/UI/menu_buttons.png'))
+
+    START_BUTTON = sheet.get_frames(0, 1451, 345, 2, colorkey=(0, 0, 0))
+    SETTINGS_BUTTON = sheet.get_frames(1, 1451, 345, 2, colorkey=(0, 0, 0))
+    CREDITS_BUTTON = sheet.get_frames(2, 1451, 345, 2, colorkey=(0, 0, 0))
+    QUIT_BUTTON = sheet.cut_image((0, 1035), 1451, 345, colorkey=(0, 0, 0))
 
     BUTTON = load_with_colorkey('data/images/UI/button.png', (0, 0, 0))
     HINT_BUTTON = load_with_colorkey('data/images/UI/hint_btn.png', (0, 0, 0))
@@ -91,19 +93,22 @@ class Game:
         start_button = DefaultButton((self.MONITOR_W * 0.11 + self.MONITOR_W * 0.09,
                                       self.MONITOR_H * 0.88 + self.MONITOR_H * 0.04),
                                      self.MONITOR_W * 0.19, self.MONITOR_H * 0.08,
-                                     self.START_BUTTON, sound='click.wav', group=buttons_group)
+                                     self.START_BUTTON[0], hover_image=self.START_BUTTON[1],
+                                     sound='click.wav', group=buttons_group)
         interface_sounds.add(start_button._sound)
         settings_button = DefaultButton((start_button._rect.right + self.MONITOR_W * 0.008
                                          + (start_button._rect.w >> 1),
                                          self.MONITOR_H * 0.88 + self.MONITOR_H * 0.04),
                                         self.MONITOR_W * 0.19, self.MONITOR_H * 0.08,
-                                        self.SETTINGS_BUTTON, sound='click.wav', group=buttons_group)
+                                        self.SETTINGS_BUTTON[0], hover_image=self.SETTINGS_BUTTON[1],
+                                        sound='click.wav', group=buttons_group)
         interface_sounds.add(settings_button._sound)
         credits_button = DefaultButton((settings_button._rect.right + self.MONITOR_W * 0.008
                                         + (settings_button._rect.w >> 1),
                                         self.MONITOR_H * 0.88 + self.MONITOR_H * 0.04),
                                        self.MONITOR_W * 0.19, self.MONITOR_H * 0.08,
-                                       self.CREDITS_BUTTON, sound='click.wav', group=buttons_group)
+                                       self.CREDITS_BUTTON[0], self.CREDITS_BUTTON[1],
+                                       sound='click.wav', group=buttons_group)
         interface_sounds.add(credits_button._sound)
         quit_button = DefaultButton((credits_button._rect.right + self.MONITOR_W * 0.008
                                      + (credits_button._rect.w >> 1),
