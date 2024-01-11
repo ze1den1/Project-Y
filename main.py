@@ -10,9 +10,9 @@ from data.scripts.utils import load_with_colorkey, scale_with_colorkey
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
-from data.scripts.particles import Particles, Snowflake
+from data.scripts.particles import Particles, Snowflake, Materials
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
-from data.scripts.sounds import InterfaceSounds, Music
+from data.scripts.sounds import SoundsList
 from data.scripts.camera import CameraGroup
 
 pg.init()
@@ -50,6 +50,16 @@ class Game:
     HERO_HIT = HERO_SPRITESHEET.get_frames(2, 16, 16, 8, new_size=(64, 64),
                                            colorkey=(0, 0, 0))
 
+    EFFECTS_SOUNDS = SoundsList()
+    PICKAXE_SOUNDS = [(pg.mixer.Sound('data/sounds/Effects/Rock_hit-1.mp3'),
+                      pg.mixer.Sound('data/sounds/Effects/Rock_hit-2.mp3'),
+                      pg.mixer.Sound('data/sounds/Effects/Rock_hit-3.mp3')),
+                      (pg.mixer.Sound('data/sounds/Effects/Wood_hit-1.mp3'),),
+                      (pg.mixer.Sound('data/sounds/Effects/Crate_crash.mp3'),)]
+    for sounds in PICKAXE_SOUNDS:
+        for sound in sounds:
+            EFFECTS_SOUNDS.add(sound)
+
     MAPS_DICT = {}
     for number, image in enumerate(os.listdir('data/maps/map_previews')):
         MAPS_DICT[number] = (pg.image.load(f'data/maps/map_previews/{image}'), image)
@@ -60,7 +70,9 @@ class Game:
 
         self._interface_volume = 1.0
 
-        self._music_sounds = Music()
+        self._effects_volume = 1.0
+
+        self._music_sounds = SoundsList()
         self._music_volume = 1.0
 
         self._all_sprites = pg.sprite.Group()
@@ -87,7 +99,7 @@ class Game:
         screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
 
         buttons_group = ButtonGroup()
-        interface_sounds = InterfaceSounds()
+        interface_sounds = SoundsList()
         snowflakes = Particles()
 
         start_button = DefaultButton((self.MONITOR_W * 0.11 + self.MONITOR_W * 0.09,
@@ -221,7 +233,8 @@ class Game:
     def settings_menu(self) -> None:
         screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
 
-        font_surf = self._font.render('UI sounds', True, (0, 0, 0))
+        UI_text = self._font.render('UI sounds', True, (0, 0, 0))
+        effects_text = self._font.render('Effects sounds', True, (0, 0, 0))
 
         states = []
         volume_surf = pg.Surface((self.MONITOR_W * 0.75, self.MONITOR_H * 0.85))
@@ -237,7 +250,7 @@ class Game:
         settings_state = -1
 
         buttons_group = ButtonGroup()
-        interface_sounds = InterfaceSounds()
+        interface_sounds = SoundsList()
 
         return_btn = DefaultButton((150, 100), 200, 100,
                                    self.BUTTON, text='Return', text_size=self._font_size,
@@ -253,27 +266,45 @@ class Game:
         interface_sounds.add(video_btn._sound)
 
         volume_buttons = ButtonGroup()
-        slider = Slider((volume_rect.w * 0.4 + volume_rect.topleft[0],
-                         volume_rect.h * 0.1 + volume_rect.topleft[1]),
-                        volume_rect.w * 0.4, 60,
-                        slider_color=(126, 134, 148))
-        decrease_value = DefaultButton((volume_rect.w * 0.35 + volume_rect.topleft[0],
-                                        volume_rect.h * 0.12 + volume_rect.topleft[1]),
-                                       volume_rect.w * 0.05, 50,
-                                       self.LEFT_ARROW,
-                                       sound='click.wav', group=volume_buttons)
-        interface_sounds.add(decrease_value._sound)
-        increase_value = DefaultButton((volume_rect.w * 0.85 + volume_rect.topleft[0],
-                                        volume_rect.h * 0.12 + volume_rect.topleft[1]),
-                                       volume_rect.w * 0.05, 50,
-                                       self.RIGHT_ARROW,
-                                       sound='click.wav', group=volume_buttons)
-        interface_sounds.add(increase_value._sound)
+        UI_slider = Slider((volume_rect.w * 0.4 + volume_rect.topleft[0],
+                            volume_rect.h * 0.1 + volume_rect.topleft[1]),
+                           volume_rect.w * 0.4, 60,
+                           slider_color=(126, 134, 148))
+        decrease_UI = DefaultButton((volume_rect.w * 0.35 + volume_rect.topleft[0],
+                                     volume_rect.h * 0.12 + volume_rect.topleft[1]),
+                                    volume_rect.w * 0.05, 50,
+                                    self.LEFT_ARROW,
+                                    sound='click.wav', group=volume_buttons)
+        interface_sounds.add(decrease_UI._sound)
+        increase_UI = DefaultButton((volume_rect.w * 0.85 + volume_rect.topleft[0],
+                                     volume_rect.h * 0.12 + volume_rect.topleft[1]),
+                                    volume_rect.w * 0.05, 50,
+                                    self.RIGHT_ARROW,
+                                    sound='click.wav', group=volume_buttons)
+        interface_sounds.add(increase_UI._sound)
+        effects_slider = Slider((volume_rect.w * 0.4 + volume_rect.topleft[0],
+                                 volume_rect.h * 0.2 + volume_rect.topleft[1]),
+                                volume_rect.w * 0.4, 60,
+                                slider_color=(126, 134, 148))
+        decrease_effects = DefaultButton((volume_rect.w * 0.35 + volume_rect.topleft[0],
+                                          volume_rect.h * 0.22 + volume_rect.topleft[1]),
+                                         volume_rect.w * 0.05, 50,
+                                         self.LEFT_ARROW,
+                                         sound='click.wav', group=volume_buttons)
+        interface_sounds.add(decrease_effects._sound)
+        increase_effects = DefaultButton((volume_rect.w * 0.85 + volume_rect.topleft[0],
+                                          volume_rect.h * 0.22 + volume_rect.topleft[1]),
+                                         volume_rect.w * 0.05, 50,
+                                         self.RIGHT_ARROW,
+                                         sound='click.wav', group=volume_buttons)
+        interface_sounds.add(increase_effects._sound)
 
         interface_sounds.set_volume(self._interface_volume)
 
-        value = int(self._interface_volume * 10)
-        slider.change(value)
+        UI_value = int(self._interface_volume * 10)
+        UI_slider.change(UI_value)
+        effects_value = int(self._effects_volume * 10)
+        effects_slider.change(effects_value)
 
         run = True
         while run:
@@ -285,16 +316,26 @@ class Game:
                     settings_state = 0
                 elif event.type == pg.USEREVENT and event.button == video_btn:
                     settings_state = 1
-                elif event.type == pg.USEREVENT and event.button == decrease_value and 0 < value <= 10:
-                    value -= 1
-                    slider.change(value)
-                    self._interface_volume = value / 10
+
+                elif event.type == pg.USEREVENT and event.button == decrease_UI and 0 < UI_value <= 10:
+                    UI_value -= 1
+                    UI_slider.change(UI_value)
+                    self._interface_volume = UI_value / 10
                     interface_sounds.set_volume(self._interface_volume)
-                elif event.type == pg.USEREVENT and event.button == increase_value and 0 <= value < 10:
-                    value += 1
-                    slider.change(value)
-                    self._interface_volume = value / 10
+                elif event.type == pg.USEREVENT and event.button == increase_UI and 0 <= UI_value < 10:
+                    UI_value += 1
+                    UI_slider.change(UI_value)
+                    self._interface_volume = UI_value / 10
                     interface_sounds.set_volume(self._interface_volume)
+
+                elif event.type == pg.USEREVENT and event.button == decrease_effects and 0 < effects_value <= 10:
+                    effects_value -= 1
+                    effects_slider.change(effects_value)
+                    self._effects_volume = effects_value / 10
+                elif event.type == pg.USEREVENT and event.button == increase_effects and 0 <= effects_value < 10:
+                    effects_value += 1
+                    effects_slider.change(effects_value)
+                    self._effects_volume = effects_value / 10
 
                 if event.type == pg.QUIT:
                     run = False
@@ -308,11 +349,14 @@ class Game:
             if settings_state != -1:
                 screen.blit(states[settings_state], (self.MONITOR_W * 0.22, self.MONITOR_H * 0.05))
                 if settings_state == 0:
-                    slider.draw(screen)
+                    UI_slider.draw(screen)
+                    effects_slider.draw(screen)
                     volume_buttons.draw(screen)
                     volume_buttons.check_hover(pg.mouse.get_pos())
-                    screen.blit(font_surf, (volume_rect.topleft[0] + self.MONITOR_H * 0.05,
-                                            volume_rect.topleft[1] + self.MONITOR_W * 0.05))
+                    screen.blit(UI_text, (volume_rect.topleft[0] + self.MONITOR_W * 0.05,
+                                          volume_rect.topleft[1] + self.MONITOR_H * 0.08))
+                    screen.blit(effects_text, (volume_rect.topleft[0] + self.MONITOR_W * 0.05,
+                                               volume_rect.topleft[1] + self.MONITOR_H * 0.18))
 
             buttons_group.check_hover(pg.mouse.get_pos())
             buttons_group.draw(screen)
@@ -325,7 +369,7 @@ class Game:
         pause_rect = pause_surf.get_rect(center=pause_pos)
 
         pause_buttons = ButtonGroup()
-        interface_sounds = InterfaceSounds()
+        interface_sounds = SoundsList()
 
         continue_button = DefaultButton((pause_rect.centerx, pause_rect.centery - 200), 200, 100,
                                         self.BUTTON, text='continue', text_size=self._font_size,
@@ -387,6 +431,9 @@ class Game:
         self.restart_game(lvl_name)
         self._hero: Hero
 
+        self.EFFECTS_SOUNDS.set_volume(self._effects_volume)
+        cur_sound = 0
+
         ui = ButtonGroup()
         ui_sprites = pg.sprite.Group()
         hp_bar = Slider((75, 20), 300, 50, (5, 5, 5), (227, 25, 25), 100)
@@ -437,6 +484,14 @@ class Game:
                         and pg.time.get_ticks() - prev_hit > 800):
                     obstacle.hit(self, (obstacle_offset[0] + (obstacle.rect.w >> 1),
                                         obstacle_offset[1] + (obstacle.rect.h >> 1)))
+
+                    if obstacle.MATERIAL == Materials.WOOD and obstacle._hp != 0:
+                        self.PICKAXE_SOUNDS[1][0].play()
+                    elif obstacle.MATERIAL == Materials.WOOD and obstacle._hp == 0:
+                        self.PICKAXE_SOUNDS[2][0].play()
+                    else:
+                        self.PICKAXE_SOUNDS[0][cur_sound % 3].play()
+                        cur_sound += 1
                     prev_hit = pg.time.get_ticks()
                     break
 
@@ -477,3 +532,4 @@ class Game:
 if __name__ == '__main__':
     game = Game()
     game.main()
+    input()

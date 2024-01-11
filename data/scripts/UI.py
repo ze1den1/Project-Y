@@ -24,7 +24,7 @@ class ButtonGroup:
 
 
 class DefaultButton:
-    STANDARD_SOUND = pg.mixer.Sound('data/sounds/buttons/click.wav')
+    STANDARD_SOUND = pg.mixer.Sound('data/sounds/UI/click.wav')
 
     def __init__(self, pos: tuple[int or float, int or float], width: int or float, height: int or float,
                  button_img: pg.Surface, hover_image: pg.Surface = None,
