@@ -11,6 +11,13 @@ class CameraGroup(pg.sprite.Group):
         self.half_w = self.game.MONITOR_W >> 1
         self.half_h = self.game.MONITOR_H >> 1
 
+        self._ground_surf = pg.Surface((3000, 3000))
+        self._ground_rect = self._ground_surf.get_rect(topleft=(0, 0))
+
+    def set_bg(self, image: pg.Surface) -> None:
+        self._ground_surf = image
+        self._ground_rect = self._ground_surf.get_rect(topleft=(0, 0))
+
     def center_camera(self, target: Hero) -> None:
         self.offset.x = target.rect.centerx - self.half_w
         self.offset.y = target.rect.centery - self.half_h
@@ -21,6 +28,10 @@ class CameraGroup(pg.sprite.Group):
 
     def custom_draw(self, player: Hero, screen: pg.Surface) -> None:
         self.center_camera(player)
+
+        ground_offset = self._ground_rect.topleft - self.offset
+        screen.blit(self._ground_surf, ground_offset)
+
         player.update(screen, self.offset)
         for sprite in self.sprites():
             offset_pos = sprite.rect.topleft - self.offset

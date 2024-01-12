@@ -1,12 +1,14 @@
 import os.path
 import random
 import sys
+import time
 
 import pygame as pg
 
 pg.display.set_mode((0, 0))
 
-from data.scripts.utils import load_with_colorkey, scale_with_colorkey
+from data.scripts.utils import (load_with_colorkey, scale_with_colorkey, create_bg, show_coords, show_mouse_coords,
+                                show_fps)
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
@@ -21,13 +23,13 @@ pg.mixer.init()
 
 class Game:
     FPS = 60
-    BACKGROUND = pg.Color((255, 255, 255))
+    BACKGROUND = pg.Color('#818181')
     TILE_SIZE = 72
-    MONITOR_W = pg.display.Info().current_w
-    MONITOR_H = pg.display.Info().current_h
+    MONITOR_SIZE = MONITOR_W, MONITOR_H = pg.display.Info().current_w, pg.display.Info().current_h
 
     MENU_BG = pg.transform.scale(pg.image.load('data/images/UI/menu_bg.png'),
                                  (MONITOR_W, MONITOR_H))
+    GAME_BG_TILE = pg.transform.scale(pg.image.load('data/images/objects/game_bg.png'), (100, 100))
     sheet = SpriteSheet(pg.image.load('data/images/UI/menu_buttons.png'))
 
     START_BUTTON = sheet.get_frames(0, 1451, 345, 2, colorkey=(0, 0, 0))
@@ -40,7 +42,7 @@ class Game:
     LEFT_ARROW = pg.image.load('data/images/UI/left_arrow.png')
     RIGHT_ARROW = pg.image.load('data/images/UI/right_arrow.png')
 
-    HEART_IMG = scale_with_colorkey(pg.image.load('data/images/UI/heart.png'), (48, 48), (0, 0, 0))
+    HEART_IMG = pg.transform.scale(pg.image.load('data/images/UI/heart.png'), (48, 48))
 
     HERO_SPRITESHEET = SpriteSheet(pg.image.load('data/images/creatures/hero.png'))
     HERO_IDLE = HERO_SPRITESHEET.get_frames(0, 16, 16, 18, new_size=(64, 64),
@@ -49,6 +51,18 @@ class Game:
                                             colorkey=(0, 0, 0))
     HERO_HIT = HERO_SPRITESHEET.get_frames(2, 16, 16, 8, new_size=(64, 64),
                                            colorkey=(0, 0, 0))
+
+    sheet = SpriteSheet(pg.image.load('data/images/objects/obstacles.png'))
+    ROCKS = [sheet.cut_image((0, 0), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0)),
+             sheet.cut_image((16, 0), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0)),
+             sheet.cut_image((32, 0), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0))]
+    ORES = [sheet.cut_image((0, 16), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0)),
+            sheet.cut_image((16, 16), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0)),
+            sheet.cut_image((32, 16), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0)),
+            sheet.cut_image((48, 16), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0))]
+    CRATE = sheet.cut_image((0, 32), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0))
+    CHEST_CLOSED = sheet.cut_image((0, 48), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0))
+    CHEST_OPEN = sheet.cut_image((16, 48), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0))
 
     EFFECTS_SOUNDS = SoundsList()
     PICKAXE_SOUNDS = [(pg.mixer.Sound('data/sounds/Effects/Rock_hit-1.mp3'),
@@ -407,7 +421,7 @@ class Game:
             pg.display.update()
 
     def restart_game(self, lvl_name: str) -> None:
-        self._main_screen = pg.display.set_mode((0, 0), pg.FULLSCREEN, pg.DOUBLEBUF)
+        self._main_screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
         if self._all_sprites:
             for sprite in self._all_sprites:
                 sprite.kill()
@@ -415,6 +429,8 @@ class Game:
         map_data = get_map_data(f'data/maps/{lvl_name}.dat')
         player_pos = get_player_pos(map_data)
         self._field = self.get_map_surface(map_data)
+        background = create_bg(self._field.get_size(), self.GAME_BG_TILE)
+        self._camera_group.set_bg(background)
         self._main_screen.blit(self._field, (0, 0))
 
         map_width = len(map_data[0]) * self.TILE_SIZE
@@ -447,7 +463,10 @@ class Game:
 
         clock = pg.time.Clock()
         prev_hit = pg.time.get_ticks()
+        self.real_fps = 0
+        self.t = time.time()
 
+        debug = False
         self._main_run = True
         self._to_quit = False
         while self._main_run:
@@ -456,6 +475,9 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     self.pause_menu()
+
+                if event.type == pg.KEYDOWN and event.key == pg.K_F5:
+                    debug = not debug
 
                 if event.type == pg.QUIT:
                     self._main_run = False
@@ -500,6 +522,10 @@ class Game:
 
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
+            if debug:
+                show_coords(self._hero, self._main_screen)
+                show_mouse_coords(pg.mouse.get_pos(), self._main_screen)
+                show_fps(self, self._main_screen)
 
             pg.display.update()
 
@@ -523,6 +549,19 @@ class Game:
                         SimpleObject(self, int(data[y][x]), x, y, self._breakable)
         return lvl_map
 
+    def calc_fps(self) -> str:
+        cur_t = time.time()
+        cur_fps = False
+        if cur_t != self.t:
+            cur_fps = 1 / (cur_t - self.t)
+            if self.real_fps == 0:
+                self.real_fps = cur_fps
+            else:
+                self.real_fps = 0.8 * self.real_fps + 0.2 * cur_fps
+        self.t = cur_t
+        if cur_fps:
+            return str(round(cur_fps))
+
     @staticmethod
     def terminate() -> None:
         pg.quit()
@@ -532,4 +571,3 @@ class Game:
 if __name__ == '__main__':
     game = Game()
     game.main()
-    input()

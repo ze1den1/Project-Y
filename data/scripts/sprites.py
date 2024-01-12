@@ -76,7 +76,6 @@ class Hero(pg.sprite.Sprite):
         self.game = game
 
         self.rect = self.image.get_rect(center=position)
-        self.pos = list(self.rect.center)
         self.direction = pg.math.Vector2()
         self._is_move = False
 
@@ -157,13 +156,12 @@ class Hero(pg.sprite.Sprite):
         self.move(screen)
 
     def move(self, screen: pg.Surface) -> None:
-        old_pos = self.pos.copy()
+        old_pos = list(self.rect.center).copy()
 
-        self.pos += (self.SPEED * self.direction)
-        self.rect.center = self.pos
+        self.rect.center += (self.SPEED * self.direction.normalize())
 
         if pg.sprite.spritecollideany(self, self.game._obstacles):
-            self.pos = old_pos
+            self.rect.center = old_pos
 
         self._current_animation = Animations.MOVE_ANIMATION
         self.draw(screen)
