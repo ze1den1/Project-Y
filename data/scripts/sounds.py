@@ -14,11 +14,3 @@ class SoundsList:
     def set_volume(self, volume: float) -> None:
         for sound in self.sounds:
             sound.set_volume(volume)
-
-
-class InterfaceSounds(SoundsList):
-    pass
-
-
-class Music(SoundsList):
-    pass
