@@ -17,6 +17,7 @@ class Objects(IntEnum):
     CRATE = 6
 
 
+LOOT_NAMES = {0: 'copper', 1: 'iron', 2: 'ruby', 3: 'sapphire'}
 loot_items = SpriteSheet(pg.image.load('data/images/objects/inventory_items.png'))
 
 
@@ -134,3 +135,4 @@ class Loot(pg.sprite.Sprite):
         self.image = self.ITEMS[loot_type]
         self.rect = self.image.get_rect(center=pos)
         self.loot_type = loot_type
+        self.name = LOOT_NAMES[loot_type]

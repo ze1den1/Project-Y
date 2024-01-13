@@ -11,11 +11,10 @@ class Animations(IntEnum):
     HIT_ANIMATION = 2
 
 
-INVENTORY_STACKS = {'copper': 4,
-                    'iron': 4,
-                    'ruby': 1,
-                    'sapphire': 2,
-                    'coin': 100}
+INVENTORY_SIZE = {'copper': 4,
+                  'iron': 4,
+                  'ruby': 1,
+                  'sapphire': 2}
 
 
 class SpriteSheet:
@@ -99,9 +98,7 @@ class Hero(pg.sprite.Sprite):
         self._current_animation = Animations.IDLE_ANIMATION
 
         self._hp = 100
-        self._inventory = [[None, None, None],
-                           [None, None, None],
-                           [None, None, None]]
+        self._inventory = None
 
     def get_hp(self) -> int:
         return self._hp
@@ -150,8 +147,18 @@ class Hero(pg.sprite.Sprite):
                 money_counter.change(money_counter.get_value() + 1)
                 collided.kill()
             else:
-                print('collected')
-                collided.kill()
+                for row in range(len(self._inventory.items)):
+                    for col in range(len(self._inventory.items[0])):
+                        cell = self._inventory.items[row][col]
+                        if not cell:
+                            cell.append(collided.name)
+                            cell.append(collided)
+                            collided.kill()
+                            return
+                        elif collided.name in cell and len(cell) <= INVENTORY_SIZE[collided.name]:
+                            cell.append(collided)
+                            collided.kill()
+                            return
 
     def update(self, screen: pg.Surface, offset: pg.Vector2, money_counter) -> None:
         self._offset = offset
@@ -178,7 +185,6 @@ class Hero(pg.sprite.Sprite):
         old_pos = list(self.rect.center).copy()
 
         self.rect.center += (self.SPEED * self.direction.normalize())
-
         if pg.sprite.spritecollideany(self, self.game._obstacles):
             self.rect.center = old_pos
 

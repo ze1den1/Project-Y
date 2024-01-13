@@ -10,6 +10,7 @@ pg.display.set_mode((0, 0))
 from data.scripts.utils import (load_with_colorkey, scale_with_colorkey, create_bg, show_coords, show_mouse_coords,
                                 show_fps)
 from data.scripts.sprites import Hero, SpriteSheet
+from data.scripts.inventory import Inventory
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
 from data.scripts.particles import Particles, Snowflake, Materials
@@ -461,6 +462,7 @@ class Game:
         ui.add(hp_bar)
         counter = Counter((self.MONITOR_W - 250, 20), 300, 50,
                           number_color=(255, 255, 255), group=ui)
+        inventory = Inventory(self._hero)
 
         clock = pg.time.Clock()
         prev_hit = pg.time.get_ticks()

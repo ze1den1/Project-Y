@@ -32,7 +32,7 @@ class CameraGroup(pg.sprite.Group):
         ground_offset = self._ground_rect.topleft - self.offset
         screen.blit(self._ground_surf, ground_offset)
 
-        player.update(screen, self.offset, money_counter)
         for sprite in self.sprites():
             offset_pos = sprite.rect.topleft - self.offset
             screen.blit(sprite.image, offset_pos)
+        player.update(screen, self.offset, money_counter)
