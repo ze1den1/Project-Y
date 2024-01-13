@@ -119,8 +119,11 @@ class Counter:
 
     def change(self, value: int) -> None:
         self._count = value
-        self._numbers_surf = self._font.render('$' + str(self._count).ljust(4, '0'),
+        self._numbers_surf = self._font.render('$' + str(self._count).rjust(4, '0'),
                                                True, self._color)
+
+    def get_value(self) -> int:
+        return self._count
 
     def draw(self, screen: pg.Surface) -> None:
         screen.blit(self._counter_surf, self._rect.topleft)

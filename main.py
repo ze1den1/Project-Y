@@ -92,6 +92,7 @@ class Game:
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
         self._breakable = pg.sprite.Group()
+        self._picked = pg.sprite.Group()
         self._particles = Particles()
         self._chests = []
         self._borders = []
@@ -486,7 +487,7 @@ class Game:
             self._main_screen.blit(self._field, (0, 0))
             for sprite in self._borders:
                 self._main_screen.blit(sprite.image, sprite.rect.topleft)
-            self._camera_group.custom_draw(self._hero, self._main_screen)
+            self._camera_group.custom_draw(self._hero, self._main_screen, counter)
 
             for chest in self._chests:
                 if chest.check_position(self._hero) and not chest.is_open:
@@ -544,9 +545,9 @@ class Game:
                     if int(data[y][x]) == Objects.CHEST:
                         self._chests.append(Chest(self, x, y))
                     elif int(data[y][x]) == Objects.CRATE:
-                        Crate(self, x, y, self._breakable)
+                        Crate(self, x, y, self._breakable, self._all_sprites)
                     else:
-                        SimpleObject(self, int(data[y][x]), x, y, self._breakable)
+                        SimpleObject(self, int(data[y][x]), x, y, self._breakable, self._all_sprites)
         return lvl_map
 
     def calc_fps(self) -> str:

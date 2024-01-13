@@ -26,13 +26,13 @@ class CameraGroup(pg.sprite.Group):
         self.center_camera(target)
         return self.offset
 
-    def custom_draw(self, player: Hero, screen: pg.Surface) -> None:
+    def custom_draw(self, player: Hero, screen: pg.Surface, money_counter) -> None:
         self.center_camera(player)
 
         ground_offset = self._ground_rect.topleft - self.offset
         screen.blit(self._ground_surf, ground_offset)
 
-        player.update(screen, self.offset)
+        player.update(screen, self.offset, money_counter)
         for sprite in self.sprites():
             offset_pos = sprite.rect.topleft - self.offset
             screen.blit(sprite.image, offset_pos)
