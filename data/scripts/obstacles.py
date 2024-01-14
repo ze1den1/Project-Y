@@ -17,6 +17,10 @@ class Objects(IntEnum):
     CRATE = 6
 
 
+LOOT_NAMES = {0: 'copper', 1: 'iron', 2: 'ruby', 3: 'sapphire'}
+loot_items = SpriteSheet(pg.image.load('data/images/objects/inventory_items.png'))
+
+
 class SimpleObject(pg.sprite.Sprite):
     TILE_SIZE = 72
     MATERIAL = Materials.ROCK
@@ -34,7 +38,9 @@ class SimpleObject(pg.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             self.TILE_SIZE * pos_x, self.TILE_SIZE * pos_y
         )
+        self._obst_type = obst_type
         self._hp = 3
+        self.game = game
 
     def check_position(self, player) -> bool:
         player_rect = player.rect
@@ -51,6 +57,11 @@ class SimpleObject(pg.sprite.Sprite):
     def check_brake(self) -> None:
         if self._hp <= 0:
             self.kill()
+            self.drop_loot()
+
+    def drop_loot(self) -> None:
+        if Objects.COPPER <= self._obst_type <= Objects.SAPPHIRE:
+            Loot(self.game, self._obst_type - 1, self.rect.center)
 
 
 class Chest(SimpleObject):
@@ -71,14 +82,46 @@ class Chest(SimpleObject):
         if keys[pg.K_SPACE]:
             self.is_open = True
             self.image = self.game.CHEST_OPEN
-            
-            
+            for i in range(random.randrange(1, 5)):
+                direction = random.randrange(1, 5)
+                if direction == 1:
+                    x1, x2 = -30, 30
+                    y1, y2 = -80, -50
+                elif direction == 2:
+                    x1, x2 = 50, 80
+                    y1, y2 = -30, 30
+                elif direction == 3:
+                    x1, x2 = -30, 30
+                    y1, y2 = 50, 80
+                else:
+                    x1, x2 = -80, -50
+                    y1, y2 = -30, 30
+                loot = Loot(self.game, 4, (self.rect.centerx + random.randrange(x1, x2),
+                                           self.rect.centery + random.randrange(y1, y2)))
+                while True:
+                    if pg.sprite.spritecollideany(loot, self.game._obstacles):
+                        x1 -= 5
+                        x2 += 5
+                        y1 -= 5
+                        x2 += 5
+                        loot.rect.topleft = (self.rect.centerx + random.randrange(x1, x2),
+                                             self.rect.centery + random.randrange(y1, y2))
+                    else:
+                        break
+
+
 class Crate(SimpleObject):
     MATERIAL = Materials.WOOD
 
     def __init__(self, game: 'main.Game', pos_x: int, pos_y: int, *groups) -> None:
         super().__init__(game, Objects.CRATE, pos_x, pos_y, *groups)
         self._hp = 2
+        self.game = game
+
+    def drop_loot(self) -> None:
+        for i in range(random.randrange(1, 3)):
+            Loot(self.game, 4, (self.rect.centerx + random.randrange(-10, 10),
+                                self.rect.centery + random.randrange(-10, 10)))
 
 
 class Border(pg.sprite.Sprite):
@@ -90,3 +133,19 @@ class Border(pg.sprite.Sprite):
         else:
             self.image = pg.Surface((x2 - x1, 1))
             self.rect = pg.Rect(x1, y1, x2 - x1, 1)
+
+
+class Loot(pg.sprite.Sprite):
+    ITEMS = [loot_items.cut_image((0, 0), 15, 16, new_size=(24, 24), colorkey=(0, 0, 0)),
+             loot_items.cut_image((16, 0), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0)),
+             loot_items.cut_image((32, 0), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0)),
+             loot_items.cut_image((48, 0), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0)),
+             loot_items.cut_image((0, 16), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0))]
+
+    def __init__(self, game: 'main.Game', loot_type: int, pos: tuple[int, int]):
+        super().__init__(game._picked, game._camera_group, game._all_sprites)
+        self.image = self.ITEMS[loot_type]
+        self.rect = self.image.get_rect(center=pos)
+        self.loot_type = loot_type
+        if loot_type != 4:
+            self.name = LOOT_NAMES[loot_type]

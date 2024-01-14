@@ -10,8 +10,9 @@ pg.display.set_mode((0, 0))
 from data.scripts.utils import (load_with_colorkey, scale_with_colorkey, create_bg, show_coords, show_mouse_coords,
                                 show_fps)
 from data.scripts.sprites import Hero, SpriteSheet
+from data.scripts.inventory import Inventory
 from data.scripts.mapReader import get_map_data, get_player_pos
-from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate
+from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate, Loot
 from data.scripts.particles import Particles, Snowflake, Materials
 from data.scripts.UI import DefaultButton, ButtonGroup, Slider, Counter
 from data.scripts.sounds import SoundsList
@@ -64,10 +65,13 @@ class Game:
     CHEST_CLOSED = sheet.cut_image((0, 48), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0))
     CHEST_OPEN = sheet.cut_image((16, 48), 16, 16, new_size=(72, 72), colorkey=(0, 0, 0))
 
+    sheet = SpriteSheet(pg.image.load('data/images/objects/store.png'))
+    STORE_ANIM = sheet.get_frames(0, 128, 128, 4, new_size=(512, 512), colorkey=(0, 0, 0))
+
     EFFECTS_SOUNDS = SoundsList()
     PICKAXE_SOUNDS = [(pg.mixer.Sound('data/sounds/Effects/Rock_hit-1.mp3'),
-                      pg.mixer.Sound('data/sounds/Effects/Rock_hit-2.mp3'),
-                      pg.mixer.Sound('data/sounds/Effects/Rock_hit-3.mp3')),
+                       pg.mixer.Sound('data/sounds/Effects/Rock_hit-2.mp3'),
+                       pg.mixer.Sound('data/sounds/Effects/Rock_hit-3.mp3')),
                       (pg.mixer.Sound('data/sounds/Effects/Wood_hit-1.mp3'),),
                       (pg.mixer.Sound('data/sounds/Effects/Crate_crash.mp3'),)]
     for sounds in PICKAXE_SOUNDS:
@@ -92,6 +96,7 @@ class Game:
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
         self._breakable = pg.sprite.Group()
+        self._picked = pg.sprite.Group()
         self._particles = Particles()
         self._chests = []
         self._borders = []
@@ -99,11 +104,14 @@ class Game:
         self._camera_group = CameraGroup(self)
 
         self._hero = None
+        self.store_rect = None
+        self.t = 0
+        self.real_fps = 0
 
         self.current_map = 0
 
-        font_scale = round(self.MONITOR_W // 16) >> 1
-        self._font_size = round(0.8 * font_scale)
+        self._font_scale = round(self.MONITOR_W // 16) >> 1
+        self._font_size = round(0.8 * self._font_scale)
         self._font = pg.font.Font(None, self._font_size)
 
     def main(self) -> None:
@@ -142,10 +150,22 @@ class Game:
                                     self.MONITOR_W * 0.19, self.MONITOR_H * 0.08,
                                     self.QUIT_BUTTON, sound='click.wav', group=buttons_group)
         interface_sounds.add(quit_button._sound)
-
         interface_sounds.set_volume(self._interface_volume)
 
+        credits_surf = pg.Surface((self.MONITOR_W * 0.4, self.MONITOR_H * 0.4))
+        credits_rect = credits_surf.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
+        credits_font = pg.font.Font(None, self._font_size)
+        author_font = pg.font.Font(None, round(self._font_size * 1.5))
+        authors_text_surf = credits_font.render('Authors', False, (255, 255, 255))
+        name_text_surf = author_font.render('Dmitry Skorokhodov', True, (255, 255, 255))
+        name1_rect = name_text_surf.get_rect(center=(credits_rect.centerx, credits_rect.h * 0.4 + credits_rect.top))
+        name2_text_surf = credits_font.render('Matvey Polupanov', True, (255, 255, 255))
+        name2_rect = name2_text_surf.get_rect(center=(credits_rect.centerx, credits_rect.h * 0.6 + credits_rect.top))
+        credits_surf.fill('black')
+        credits_surf.set_alpha(128)
+
         clock = pg.time.Clock()
+        show_credits = False
         run = True
         while run:
             clock.tick(self.FPS)
@@ -162,7 +182,7 @@ class Game:
                     run = False
                     self.settings_menu()
                 elif event.type == pg.USEREVENT and event.button == credits_button:
-                    pass
+                    show_credits = not show_credits
                 buttons_group.handle(event)
 
             buttons_group.check_hover(pg.mouse.get_pos())
@@ -171,6 +191,13 @@ class Game:
             snowflake = Snowflake(self, (random.randrange(0, self.MONITOR_W - 20), 0), self.FPS)
             snowflakes.add(snowflake)
             snowflakes.update(screen)
+
+            if show_credits:
+                screen.blit(credits_surf, credits_rect)
+                screen.blit(authors_text_surf,
+                            (credits_rect.centerx - (authors_text_surf.get_width() >> 1), credits_rect.top + 50))
+                screen.blit(name_text_surf, name1_rect)
+                screen.blit(name2_text_surf, name2_rect)
 
             buttons_group.draw(screen)
 
@@ -249,6 +276,7 @@ class Game:
 
         UI_text = self._font.render('UI sounds', True, (0, 0, 0))
         effects_text = self._font.render('Effects sounds', True, (0, 0, 0))
+        music_text = self._font.render('Music', True, (0, 0, 0))
 
         states = []
         volume_surf = pg.Surface((self.MONITOR_W * 0.75, self.MONITOR_H * 0.85))
@@ -312,6 +340,22 @@ class Game:
                                          self.RIGHT_ARROW,
                                          sound='click.wav', group=volume_buttons)
         interface_sounds.add(increase_effects._sound)
+        music_slider = Slider((volume_rect.w * 0.4 + volume_rect.topleft[0],
+                               volume_rect.h * 0.3 + volume_rect.topleft[1]),
+                              volume_rect.w * 0.4, 60,
+                              slider_color=(126, 134, 148))
+        decrease_music = DefaultButton((volume_rect.w * 0.35 + volume_rect.topleft[0],
+                                        volume_rect.h * 0.32 + volume_rect.topleft[1]),
+                                       volume_rect.w * 0.05, 50,
+                                       self.LEFT_ARROW,
+                                       sound='click.wav', group=volume_buttons)
+        interface_sounds.add(decrease_music._sound)
+        increase_music = DefaultButton((volume_rect.w * 0.85 + volume_rect.topleft[0],
+                                        volume_rect.h * 0.32 + volume_rect.topleft[1]),
+                                       volume_rect.w * 0.05, 50,
+                                       self.RIGHT_ARROW,
+                                       sound='click.wav', group=volume_buttons)
+        interface_sounds.add(increase_music._sound)
 
         interface_sounds.set_volume(self._interface_volume)
 
@@ -319,6 +363,8 @@ class Game:
         UI_slider.change(UI_value)
         effects_value = int(self._effects_volume * 10)
         effects_slider.change(effects_value)
+        music_value = int(self._music_volume * 10)
+        music_slider.change(music_value)
 
         run = True
         while run:
@@ -351,6 +397,15 @@ class Game:
                     effects_slider.change(effects_value)
                     self._effects_volume = effects_value / 10
 
+                elif event.type == pg.USEREVENT and event.button == decrease_music and 0 < music_value <= 10:
+                    music_value -= 1
+                    music_slider.change(music_value)
+                    self._music_volume = music_value / 10
+                elif event.type == pg.USEREVENT and event.button == increase_music and 0 <= music_value < 10:
+                    music_value += 1
+                    music_slider.change(music_value)
+                    self._music_volume = music_value / 10
+
                 if event.type == pg.QUIT:
                     run = False
                     self.terminate()
@@ -365,20 +420,25 @@ class Game:
                 if settings_state == 0:
                     UI_slider.draw(screen)
                     effects_slider.draw(screen)
+                    music_slider.draw(screen)
                     volume_buttons.draw(screen)
                     volume_buttons.check_hover(pg.mouse.get_pos())
                     screen.blit(UI_text, (volume_rect.topleft[0] + self.MONITOR_W * 0.05,
                                           volume_rect.topleft[1] + self.MONITOR_H * 0.08))
                     screen.blit(effects_text, (volume_rect.topleft[0] + self.MONITOR_W * 0.05,
                                                volume_rect.topleft[1] + self.MONITOR_H * 0.18))
+                    screen.blit(music_text, (volume_rect.topleft[0] + self.MONITOR_W * 0.05,
+                                             volume_rect.topleft[1] + self.MONITOR_H * 0.28))
 
             buttons_group.check_hover(pg.mouse.get_pos())
             buttons_group.draw(screen)
             pg.display.update()
 
     def pause_menu(self) -> None:
-        pause_surf = pg.Surface((480, 720))
-        pause_surf.fill((98, 104, 115, 150))
+        pause_surf = pg.Surface((480, 720), depth=32)
+        pause_surf.fill((102, 109, 112))
+        pause_surf.set_alpha(1)
+
         pause_pos = (self.MONITOR_W >> 1, self.MONITOR_H >> 1)
         pause_rect = pause_surf.get_rect(center=pause_pos)
 
@@ -416,6 +476,7 @@ class Game:
                 pause_buttons.handle(event)
 
             self._main_screen.blit(pause_surf, pause_rect)
+
             pause_buttons.check_hover(pg.mouse.get_pos())
             pause_buttons.draw(self._main_screen)
             pg.display.update()
@@ -442,6 +503,7 @@ class Game:
 
         self._hero = Hero(self, player_pos, self.FPS, 5,
                           self.HERO_IDLE, self.HERO_MOVE, self.HERO_HIT)
+        self._inventory = Inventory(self._hero)
 
     def game(self, lvl_name: str):
         self.restart_game(lvl_name)
@@ -463,6 +525,9 @@ class Game:
 
         clock = pg.time.Clock()
         prev_hit = pg.time.get_ticks()
+        store_tick = pg.time.get_ticks()
+        store_frame = 0
+        self.store_rect = pg.Rect(0, 0, 420, 480)
         self.real_fps = 0
         self.t = time.time()
 
@@ -476,8 +541,11 @@ class Game:
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     self.pause_menu()
 
-                if event.type == pg.KEYDOWN and event.key == pg.K_F5:
+                elif event.type == pg.KEYDOWN and event.key == pg.K_F5:
                     debug = not debug
+
+                elif event.type == pg.KEYDOWN and event.key == pg.K_TAB:
+                    self.inventory()
 
                 if event.type == pg.QUIT:
                     self._main_run = False
@@ -486,7 +554,11 @@ class Game:
             self._main_screen.blit(self._field, (0, 0))
             for sprite in self._borders:
                 self._main_screen.blit(sprite.image, sprite.rect.topleft)
-            self._camera_group.custom_draw(self._hero, self._main_screen)
+            if pg.time.get_ticks() - store_tick > 400:
+                store_frame += 1
+                store_tick = pg.time.get_ticks()
+            self._camera_group.custom_draw(self._hero, self._main_screen, counter,
+                                           (self.STORE_ANIM[store_frame % 4], self.store_rect))
 
             for chest in self._chests:
                 if chest.check_position(self._hero) and not chest.is_open:
@@ -532,6 +604,43 @@ class Game:
         if self._to_quit:
             self.terminate()
 
+    def inventory(self) -> None:
+        inventory_surf = pg.Surface((self.MONITOR_W * 0.4, self.MONITOR_H * 0.5))
+        inventory_rect = inventory_surf.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
+        inventory_surf.fill('#739db2')
+        inventory_surf.blit(pg.font.Font(None, self._font_size).
+                            render('Inventory', True, (0, 0, 0)),
+                            (inventory_rect.w * 0.4, inventory_rect.h * 0.05))
+
+        one_piece_w = inventory_rect.w >> 2
+        one_piece_h = inventory_rect.h >> 2
+        count_font = pg.font.Font(None, round(self._font_scale * 0.5))
+        for row in range(len(self._inventory.items)):
+            for col in range(len(self._inventory.items[0])):
+                cell = self._inventory.items[col][row]
+                rect = pg.draw.rect(inventory_surf, (0, 0, 0),
+                                    (inventory_rect.w * 0.1 + row * (one_piece_w + 20),
+                                     inventory_rect.h * 0.15 + col * (one_piece_h + 20),
+                                     one_piece_w, one_piece_h), 2, 20)
+                if cell:
+                    item: Loot = cell[1]
+                    count_surf = count_font.render(str(len(cell) - 1), True, (0, 0, 0))
+
+                    image = scale_with_colorkey(item.ITEMS[item.loot_type], (one_piece_w >> 2, one_piece_h >> 2),
+                                                (0, 0, 0))
+                    inventory_surf.blit(image, (rect.centerx - (image.get_width() >> 1),
+                                                rect.centery - (image.get_height() >> 1)))
+                    inventory_surf.blit(count_surf, (rect.right - count_surf.get_width() * 2,
+                                                     rect.bottom - count_surf.get_height()))
+
+        run = True
+        while run:
+            for event in pg.event.get():
+                if event.type == pg.KEYDOWN and (event.key == pg.K_TAB or event.key == pg.K_ESCAPE):
+                    run = False
+            self._main_screen.blit(inventory_surf, inventory_rect)
+            pg.display.update()
+
     def get_map_surface(self, data: list) -> pg.Surface:
         lvl_height = len(data) * self.TILE_SIZE
         lvl_width = len(data[0]) * self.TILE_SIZE
@@ -544,9 +653,9 @@ class Game:
                     if int(data[y][x]) == Objects.CHEST:
                         self._chests.append(Chest(self, x, y))
                     elif int(data[y][x]) == Objects.CRATE:
-                        Crate(self, x, y, self._breakable)
+                        Crate(self, x, y, self._breakable, self._all_sprites)
                     else:
-                        SimpleObject(self, int(data[y][x]), x, y, self._breakable)
+                        SimpleObject(self, int(data[y][x]), x, y, self._breakable, self._all_sprites)
         return lvl_map
 
     def calc_fps(self) -> str:

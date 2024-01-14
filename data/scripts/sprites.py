@@ -11,6 +11,12 @@ class Animations(IntEnum):
     HIT_ANIMATION = 2
 
 
+INVENTORY_SIZE = {'copper': 4,
+                  'iron': 4,
+                  'ruby': 1,
+                  'sapphire': 2}
+
+
 class SpriteSheet:
     def __init__(self, sheet: pg.Surface):
         self.sheet = sheet
@@ -67,7 +73,6 @@ class SpriteSheet:
 class Hero(pg.sprite.Sprite):
     image = pg.Surface((24, 24))
     SPEED = 6
-    MOVE_KEYS = [pg.K_UP, pg.K_w, pg.K_DOWN, pg.K_s, pg.K_RIGHT, pg.K_d, pg.K_LEFT, pg.K_a]
 
     def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int,
                  animation_speed: float, *animation) -> None:
@@ -93,7 +98,7 @@ class Hero(pg.sprite.Sprite):
         self._current_animation = Animations.IDLE_ANIMATION
 
         self._hp = 100
-        self._inventory = [[None, None, None], [None, None, None]]
+        self._inventory = None
 
     def get_hp(self) -> int:
         return self._hp
@@ -135,7 +140,27 @@ class Hero(pg.sprite.Sprite):
         obj_rect = pg.Rect(*topleft, side, side)
         return self._mouse_click and obj_rect.collidepoint(mouse_pos) and mouse[2]
 
-    def update(self, screen: pg.Surface, offset: pg.Vector2) -> None:
+    def check_pickup(self, money_counter):
+        collided = pg.sprite.spritecollideany(self, self.game._picked)
+        if collided:
+            if collided.loot_type == 4:
+                money_counter.change(money_counter.get_value() + 1)
+                collided.kill()
+            else:
+                for row in range(len(self._inventory.items)):
+                    for col in range(len(self._inventory.items[0])):
+                        cell = self._inventory.items[row][col]
+                        if not cell:
+                            cell.append(collided.name)
+                            cell.append(collided)
+                            collided.kill()
+                            return
+                        elif collided.name in cell and len(cell) <= INVENTORY_SIZE[collided.name]:
+                            cell.append(collided)
+                            collided.kill()
+                            return
+
+    def update(self, screen: pg.Surface, offset: pg.Vector2, money_counter) -> None:
         self._offset = offset
 
         if self._is_animation_loop:
@@ -154,13 +179,13 @@ class Hero(pg.sprite.Sprite):
             self.draw(screen)
             return
         self.move(screen)
+        self.check_pickup(money_counter)
 
     def move(self, screen: pg.Surface) -> None:
         old_pos = list(self.rect.center).copy()
 
         self.rect.center += (self.SPEED * self.direction.normalize())
-
-        if pg.sprite.spritecollideany(self, self.game._obstacles):
+        if pg.sprite.spritecollideany(self, self.game._obstacles) or self.rect.colliderect(self.game.store_rect):
             self.rect.center = old_pos
 
         self._current_animation = Animations.MOVE_ANIMATION
