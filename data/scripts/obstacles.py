@@ -85,17 +85,29 @@ class Chest(SimpleObject):
             for i in range(random.randrange(1, 5)):
                 direction = random.randrange(1, 5)
                 if direction == 1:
-                    Loot(self.game, 4, (self.rect.centerx + random.randrange(-30, 30),
-                                        self.rect.centery + random.randrange(-80, -50)))
+                    x1, x2 = -30, 30
+                    y1, y2 = -80, -50
                 elif direction == 2:
-                    Loot(self.game, 4, (self.rect.centerx + random.randrange(50, 80),
-                                        self.rect.centery + random.randrange(-30, 30)))
+                    x1, x2 = 50, 80
+                    y1, y2 = -30, 30
                 elif direction == 3:
-                    Loot(self.game, 4, (self.rect.centerx + random.randrange(-30, 30),
-                                        self.rect.centery + random.randrange(50, 80)))
+                    x1, x2 = -30, 30
+                    y1, y2 = 50, 80
                 else:
-                    Loot(self.game, 4, (self.rect.centerx + random.randrange(-80, -50),
-                                        self.rect.centery + random.randrange(-30, 30)))
+                    x1, x2 = -80, -50
+                    y1, y2 = -30, 30
+                loot = Loot(self.game, 4, (self.rect.centerx + random.randrange(x1, x2),
+                                           self.rect.centery + random.randrange(y1, y2)))
+                while True:
+                    if pg.sprite.spritecollideany(loot, self.game._obstacles):
+                        x1 -= 5
+                        x2 += 5
+                        y1 -= 5
+                        x2 += 5
+                        loot.rect.topleft = (self.rect.centerx + random.randrange(x1, x2),
+                                             self.rect.centery + random.randrange(y1, y2))
+                    else:
+                        break
 
 
 class Crate(SimpleObject):
@@ -135,4 +147,5 @@ class Loot(pg.sprite.Sprite):
         self.image = self.ITEMS[loot_type]
         self.rect = self.image.get_rect(center=pos)
         self.loot_type = loot_type
-        self.name = LOOT_NAMES[loot_type]
+        if loot_type != 4:
+            self.name = LOOT_NAMES[loot_type]

@@ -185,7 +185,7 @@ class Hero(pg.sprite.Sprite):
         old_pos = list(self.rect.center).copy()
 
         self.rect.center += (self.SPEED * self.direction.normalize())
-        if pg.sprite.spritecollideany(self, self.game._obstacles):
+        if pg.sprite.spritecollideany(self, self.game._obstacles) or self.rect.colliderect(self.game.store_rect):
             self.rect.center = old_pos
 
         self._current_animation = Animations.MOVE_ANIMATION
