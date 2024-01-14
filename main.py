@@ -31,6 +31,7 @@ class Game:
     MENU_BG = pg.transform.scale(pg.image.load('data/images/UI/menu_bg.png'),
                                  (MONITOR_W, MONITOR_H))
     GAME_BG_TILE = pg.transform.scale(pg.image.load('data/images/objects/game_bg.png'), (100, 100))
+    FILL_BG = pg.transform.scale(pg.image.load('data/back_cave.png'), (MONITOR_W, MONITOR_H))
     sheet = SpriteSheet(pg.image.load('data/images/UI/menu_buttons.png'))
 
     START_BUTTON = sheet.get_frames(0, 1451, 345, 2, colorkey=(0, 0, 0))
@@ -156,10 +157,11 @@ class Game:
         credits_rect = credits_surf.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
         credits_font = pg.font.Font(None, self._font_size)
         author_font = pg.font.Font(None, round(self._font_size * 1.5))
+        author_2_font = pg.font.Font(None, round(self._font_size * 0.5))
         authors_text_surf = credits_font.render('Authors', False, (255, 255, 255))
         name_text_surf = author_font.render('Dmitry Skorokhodov', True, (255, 255, 255))
         name1_rect = name_text_surf.get_rect(center=(credits_rect.centerx, credits_rect.h * 0.4 + credits_rect.top))
-        name2_text_surf = credits_font.render('Matvey Polupanov', True, (255, 255, 255))
+        name2_text_surf = author_2_font.render('Matvey Polupanov', True, (255, 255, 255))
         name2_rect = name2_text_surf.get_rect(center=(credits_rect.centerx, credits_rect.h * 0.6 + credits_rect.top))
         credits_surf.fill('black')
         credits_surf.set_alpha(128)
@@ -645,7 +647,7 @@ class Game:
         lvl_height = len(data) * self.TILE_SIZE
         lvl_width = len(data[0]) * self.TILE_SIZE
         lvl_map = pg.Surface((lvl_width, lvl_height))
-        lvl_map.fill(self.BACKGROUND)
+        lvl_map.blit(self.FILL_BG, (0, 0))
 
         for y in range(len(data)):
             for x in range(len(data[0])):
