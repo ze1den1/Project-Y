@@ -1,28 +1,24 @@
-from enum import Enum
 import pygame as pg
 
 pg.init()
 TILE_SIZE = 72
 
 
-obj_dict = {
-    0: 'black',
-    1: 'orange',
-    2: 'gray',
-    3: 'red',
-    4: 'blue',
-    5: 'brown',
-    6: 'brown'
-}
-
-
-def get_map_data(file: str) -> list:
+def get_map_data(file: str) -> tuple[list, dict]:
     with open(file, 'r', encoding='utf-8') as map_file:
         data = [line.strip() for line in map_file]
 
+    conditions = data[data.index('') + 1:]
+    conditions_dict = {}
+    data = data[:data.index('')]
+
+    for condition in conditions:
+        condition = condition.split()
+        conditions_dict[condition[0]] = int(condition[1])
+
     max_width = max(map(len, data))
     data = list(map(lambda x: list(x.ljust(max_width, '.')), data))
-    return data
+    return data, conditions_dict
 
 
 def get_player_pos(data: list[list]) -> tuple[int, int] or None:

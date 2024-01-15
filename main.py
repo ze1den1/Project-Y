@@ -110,12 +110,16 @@ class Game:
         self._camera_group = CameraGroup(self)
 
         self._hero: Hero | None = None
+        self._inventory: Inventory | None = None
         self.store_rect = None
         self._counter: Counter | None = None
         self.t = 0
         self.real_fps = 0
 
         self.current_map = 0
+        self._main_screen: pg.Surface | None = None
+        self._map_conditions = {}
+        self._field: pg.Surface | None = None
 
         self._font_scale = round(self.MONITOR_W // 16) >> 1
         self._font_size = round(0.8 * self._font_scale)
@@ -494,7 +498,7 @@ class Game:
             for sprite in self._all_sprites:
                 sprite.kill()
 
-        map_data = get_map_data(f'data/maps/{lvl_name}.dat')
+        map_data, self._map_conditions = get_map_data(f'data/maps/{lvl_name}.dat')
         player_pos = get_player_pos(map_data)
         self._field = self.get_map_surface(map_data)
         background = create_bg(self._field.get_size(), self.GAME_BG_TILE)
@@ -515,6 +519,7 @@ class Game:
     def game(self, lvl_name: str):
         self.restart_game(lvl_name)
         self._hero: Hero
+        start_score = 0
 
         self.EFFECTS_SOUNDS.set_volume(self._effects_volume)
         cur_sound = 0
@@ -529,6 +534,11 @@ class Game:
         ui.add(hp_bar)
         self._counter = Counter((self.MONITOR_W - 250, 20), 300, 50,
                                 number_color=(255, 255, 255), group=ui)
+        end_text_upper = self._font.render("You've reached the quota.",
+                                           True, (0, 0, 0, 255)).convert_alpha()
+        end_text_lower = self._font.render("press Enter to leave.",
+                                           True, (0, 0, 0, 255)).convert_alpha()
+        alpha_lvl = 255
 
         clock = pg.time.Clock()
         prev_hit = pg.time.get_ticks()
@@ -539,6 +549,7 @@ class Game:
         self.t = time.time()
 
         debug = False
+        is_win = False
         self._main_run = True
         self._to_quit = False
         while self._main_run:
@@ -561,6 +572,10 @@ class Game:
                 if event.type == pg.QUIT:
                     self._main_run = False
                     self.terminate()
+
+                if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and is_win:
+                    self._main_run = False
+                    self.win_page(store_frame, start_score)
 
             self._main_screen.blit(self._field, (0, 0))
             for sprite in self._borders:
@@ -606,6 +621,11 @@ class Game:
             if self._particles.sprites():
                 self._particles.update(self._main_screen)
 
+            if self._counter.get_value() >= self._map_conditions['win_count']:
+                is_win = True
+                if alpha_lvl >= 0:
+                    alpha_lvl = self.show_win_text(end_text_upper, end_text_lower, alpha_lvl)
+
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
             if debug:
@@ -618,7 +638,36 @@ class Game:
         if self._to_quit:
             self.terminate()
 
-    def store(self):
+    def win_page(self, store_frame: int, start_score: int) -> None:
+        win_surf = pg.Surface((self.MONITOR_W * 0.4, self.MONITOR_H * 0.6))
+        win_surf.set_alpha(128)
+        win_rect = win_surf.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
+
+        font = pg.font.Font(None, self._font_size * 2)
+        font2 = pg.font.Font(None, round(self._font_size * 1.5))
+        win_text = font.render('YOU WIN!', True, (255, 255, 255))
+        win_text_rect = win_text.get_rect(center=(win_rect.centerx, win_rect.top + win_rect.h * 0.1))
+        result_text = font2.render(f'Your result: {self._counter.get_value() - start_score}$',
+                                   True, (255, 255, 255))
+        result_text_rect = result_text.get_rect(center=win_rect.center)
+
+        run = True
+        while run:
+            for event in pg.event.get():
+                if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+                    run = False
+                    self.main_menu()
+
+            self._camera_group.custom_draw(self._hero, self._main_screen, self._counter,
+                                           (self.STORE_ANIM[store_frame % 4], self.store_rect), True)
+
+            self._main_screen.blit(win_surf, win_rect)
+            self._main_screen.blit(win_text, win_text_rect)
+            self._main_screen.blit(result_text, result_text_rect)
+
+            pg.display.update()
+
+    def store(self) -> None:
         store_surf = pg.Surface((self.MONITOR_W, self.MONITOR_H))
         store_surf.fill(self.BACKGROUND)
 
@@ -629,10 +678,10 @@ class Game:
         text = font.render('Store', True, (0, 0, 0))
         text_rect = text.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H * 0.05))
         store_surf.blit(text, text_rect)
-        text = sub_font.render('You', True, (0, 0, 0))
+        text = sub_font.render('Sell', True, (0, 0, 0))
         text_rect = text.get_rect(center=(self.MONITOR_W * 0.74, self.MONITOR_H * 0.12))
         store_surf.blit(text, text_rect)
-        text = sub_font.render('Trader', True, (0, 0, 0))
+        text = sub_font.render('Buy', True, (0, 0, 0))
         text_rect = text.get_rect(center=(self.MONITOR_W * 0.26, self.MONITOR_H * 0.12))
         store_surf.blit(text, text_rect)
 
@@ -742,6 +791,17 @@ class Game:
         self.t = cur_t
         if cur_fps:
             return str(round(cur_fps))
+
+    def show_win_text(self, upper_text: pg.Surface, lower_text: pg.Surface, alpha: int) -> int:
+        upper_text_rect = upper_text.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H * 0.05))
+        lower_text_rect = lower_text.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H * 0.1))
+        upper_text.set_alpha(alpha)
+        lower_text.set_alpha(alpha)
+        alpha -= 1
+
+        self._main_screen.blit(upper_text, upper_text_rect)
+        self._main_screen.blit(lower_text, lower_text_rect)
+        return alpha
 
     @staticmethod
     def terminate() -> None:
