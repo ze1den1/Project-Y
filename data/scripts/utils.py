@@ -1,17 +1,19 @@
-import time
+import math
 
 import pygame as pg
 
+from data.scripts.UI import DefaultButton
+
 
 def scale_with_colorkey(image: pg.Surface, scale: tuple[int, int],
-                        colorkey: tuple[int, int, int] or str) -> pg.Surface:
+                        colorkey: tuple[int, int, int] or str = (0, 0, 0)) -> pg.Surface:
     image = pg.transform.scale(image, scale)
     image.set_colorkey(colorkey)
 
     return image
 
 
-def load_with_colorkey(image_path: str, colorkey: tuple[int, int, int] or str) -> pg.Surface:
+def load_with_colorkey(image_path: str, colorkey: tuple[int, int, int] or str = (0, 0, 0)) -> pg.Surface:
     image = pg.image.load(image_path).convert_alpha()
     image.set_colorkey(colorkey)
 
@@ -48,3 +50,17 @@ def create_bg(size: tuple[int, int], image: pg.Surface) -> pg.Surface:
             surface.blit(image, (surface_rect.left + row, surface_rect.top + col))
 
     return surface
+
+
+def check_distance(obj_1_center: tuple[int, int], obj_2_center: tuple[int, int], max_distance: int) -> bool:
+    x1, y1 = obj_1_center
+    x2, y2 = obj_2_center
+    if math.sqrt(abs(x1 - x2) ** 2 + abs(y1 - y2) ** 2) <= max_distance:
+        return True
+    return False
+
+
+def show_hint(game: 'main.Game', coords: tuple[int, int], screen: pg.Surface) -> None:
+    hint = DefaultButton(coords, 150, 100, game.HINT_BUTTON,
+                         text='space', text_size=30)
+    hint.draw(screen)

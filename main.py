@@ -8,9 +8,9 @@ import pygame as pg
 pg.display.set_mode((0, 0))
 
 from data.scripts.utils import (load_with_colorkey, scale_with_colorkey, create_bg, show_coords, show_mouse_coords,
-                                show_fps)
+                                show_fps, check_distance, show_hint)
 from data.scripts.sprites import Hero, SpriteSheet
-from data.scripts.inventory import Inventory
+from data.scripts.inventory import Inventory, Cell
 from data.scripts.mapReader import get_map_data, get_player_pos
 from data.scripts.obstacles import SimpleObject, Border, Objects, Chest, Crate, Loot
 from data.scripts.particles import Particles, Snowflake, Materials
@@ -28,10 +28,14 @@ class Game:
     TILE_SIZE = 72
     MONITOR_SIZE = MONITOR_W, MONITOR_H = pg.display.Info().current_w, pg.display.Info().current_h
 
+    PRICES = {'copper': 10,
+              'iron': 15,
+              'ruby': 50,
+              'sapphire': 25}
+
     MENU_BG = pg.transform.scale(pg.image.load('data/images/UI/menu_bg.png'),
                                  (MONITOR_W, MONITOR_H))
     GAME_BG_TILE = pg.transform.scale(pg.image.load('data/images/objects/game_bg.png'), (100, 100))
-    FILL_BG = pg.transform.scale(pg.image.load('data/back_cave.png'), (MONITOR_W, MONITOR_H))
     sheet = SpriteSheet(pg.image.load('data/images/UI/menu_buttons.png'))
 
     START_BUTTON = sheet.get_frames(0, 1451, 345, 2, colorkey=(0, 0, 0))
@@ -39,8 +43,9 @@ class Game:
     CREDITS_BUTTON = sheet.get_frames(2, 1451, 345, 2, colorkey=(0, 0, 0))
     QUIT_BUTTON = sheet.cut_image((0, 1035), 1451, 345, colorkey=(0, 0, 0))
 
-    BUTTON = load_with_colorkey('data/images/UI/button.png', (0, 0, 0))
-    HINT_BUTTON = load_with_colorkey('data/images/UI/hint_btn.png', (0, 0, 0))
+    BUTTON = load_with_colorkey('data/images/UI/button.png')
+    HINT_BUTTON = load_with_colorkey('data/images/UI/hint_btn.png')
+    STORE_BUTTON = load_with_colorkey('data/images/UI/store_btn.png')
     LEFT_ARROW = pg.image.load('data/images/UI/left_arrow.png')
     RIGHT_ARROW = pg.image.load('data/images/UI/right_arrow.png')
 
@@ -104,8 +109,9 @@ class Game:
         self._creatures = pg.sprite.Group()
         self._camera_group = CameraGroup(self)
 
-        self._hero = None
+        self._hero: Hero | None = None
         self.store_rect = None
+        self._counter: Counter | None = None
         self.t = 0
         self.real_fps = 0
 
@@ -455,9 +461,8 @@ class Game:
                                      self.BUTTON, text='menu', text_size=self._font_size,
                                      sound='click.wav', group=pause_buttons)
         interface_sounds.add(quit_to_menu._sound)
-        quit_from_the_game = DefaultButton((pause_rect.centerx, pause_rect.centery + 300), 200, 100,
-                                           self.BUTTON, text='exit', text_size=self._font_size,
-                                           sound='click.wav', group=pause_buttons)
+        quit_from_the_game = DefaultButton((pause_rect.centerx, pause_rect.centery + 300), 200, 50,
+                                           self.QUIT_BUTTON, sound='click.wav', group=pause_buttons)
         interface_sounds.add(quit_from_the_game._sound)
 
         interface_sounds.set_volume(self._interface_volume)
@@ -522,8 +527,8 @@ class Game:
         heart.rect = (20, 20, 64, 64)
         ui_sprites.add(heart)
         ui.add(hp_bar)
-        counter = Counter((self.MONITOR_W - 250, 20), 300, 50,
-                          number_color=(255, 255, 255), group=ui)
+        self._counter = Counter((self.MONITOR_W - 250, 20), 300, 50,
+                                number_color=(255, 255, 255), group=ui)
 
         clock = pg.time.Clock()
         prev_hit = pg.time.get_ticks()
@@ -549,6 +554,10 @@ class Game:
                 elif event.type == pg.KEYDOWN and event.key == pg.K_TAB:
                     self.inventory()
 
+                elif check_distance(self._hero.rect.center, self.store_rect.center, 400) and \
+                        event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                    self.store()
+
                 if event.type == pg.QUIT:
                     self._main_run = False
                     self.terminate()
@@ -559,23 +568,26 @@ class Game:
             if pg.time.get_ticks() - store_tick > 400:
                 store_frame += 1
                 store_tick = pg.time.get_ticks()
-            self._camera_group.custom_draw(self._hero, self._main_screen, counter,
+            self._camera_group.custom_draw(self._hero, self._main_screen, self._counter,
                                            (self.STORE_ANIM[store_frame % 4], self.store_rect))
 
+            offset = self._camera_group.get_offset(self._hero)
             for chest in self._chests:
-                if chest.check_position(self._hero) and not chest.is_open:
-                    offset = self._camera_group.get_offset(self._hero)
+                if check_distance(self._hero.rect.center, chest.rect.center, 120) and not chest.is_open:
                     offset_pos = chest.rect.topleft - offset
-                    chest.show_hint(self, (int(offset_pos.x) + (chest.rect.w >> 1),
-                                           int(offset_pos.y) - 50), self._main_screen)
+                    show_hint(self, (int(offset_pos.x) + (chest.rect.w >> 1),
+                                     int(offset_pos.y) - 50), self._main_screen)
                     chest.open_chest()
+
+            if check_distance(self._hero.rect.center, self.store_rect.center, 400):
+                offset_pos = self.store_rect.center - offset
+                show_hint(self, (int(offset_pos.x), int(offset_pos.y)), self._main_screen)
 
             for obstacle in self._breakable:
                 obstacle: SimpleObject
 
-                offset = self._camera_group.get_offset(self._hero)
                 obstacle_offset = obstacle.rect.topleft - offset
-                if (obstacle.check_position(self._hero)
+                if (check_distance(self._hero.rect.center, obstacle.rect.center, 120)
                         and self._hero.check_hit(obstacle_offset, obstacle.rect.w, pg.mouse.get_pos())
                         and pg.time.get_ticks() - prev_hit > 800):
                     obstacle.hit(self, (obstacle_offset[0] + (obstacle.rect.w >> 1),
@@ -606,6 +618,70 @@ class Game:
         if self._to_quit:
             self.terminate()
 
+    def store(self):
+        store_surf = pg.Surface((self.MONITOR_W, self.MONITOR_H))
+        store_surf.fill(self.BACKGROUND)
+
+        font = pg.font.Font(None, self._font_size * 3)
+        count_font = pg.font.Font(None, round(self._font_scale * 0.5))
+        sub_font = pg.font.Font(None, self._font_size * 2)
+
+        text = font.render('Store', True, (0, 0, 0))
+        text_rect = text.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H * 0.05))
+        store_surf.blit(text, text_rect)
+        text = sub_font.render('You', True, (0, 0, 0))
+        text_rect = text.get_rect(center=(self.MONITOR_W * 0.74, self.MONITOR_H * 0.12))
+        store_surf.blit(text, text_rect)
+        text = sub_font.render('Trader', True, (0, 0, 0))
+        text_rect = text.get_rect(center=(self.MONITOR_W * 0.26, self.MONITOR_H * 0.12))
+        store_surf.blit(text, text_rect)
+
+        pg.draw.line(store_surf, (0, 0, 0), (self.MONITOR_W >> 1, text_rect.bottom + 10),
+                     (self.MONITOR_W >> 1, self.MONITOR_H), width=4)
+
+        one_piece_w = ((self.MONITOR_W >> 1) / 3) - 50
+        one_piece_h = one_piece_w
+        cells = []
+
+        # Инвентарь игрока
+        for row in range(len(self._inventory.items)):
+            for col in range(len(self._inventory.items[0])):
+                cell = self._inventory.items[col][row]
+                rect = pg.rect.Rect(self.MONITOR_W * 0.5 + row * (one_piece_w + 20) + 25,
+                                    self.MONITOR_H * 0.18 + col * (one_piece_h + 20),
+                                    one_piece_w, one_piece_h)
+                cell_obj = Cell(store_surf, rect)
+                if cell:
+                    item: Loot = cell[1]
+                    image = scale_with_colorkey(item.ITEMS[item.loot_type], (one_piece_w // 4, one_piece_h // 4))
+                    cell_obj.change_item(self, cell, count_font, image, True)
+
+                cells.append(cell_obj)
+
+        run = True
+        while run:
+            mouse_pos = pg.mouse.get_pos()
+            hover_cell = False
+            for cell in cells:
+                if cell.rect.collidepoint(*mouse_pos):
+                    hover_cell = cell
+                    break
+
+            for event in pg.event.get():
+                if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+                    run = False
+
+                elif (event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT
+                      and hover_cell.content is not None):
+                    self._counter.change(self._counter.get_value() + hover_cell.cost)
+                    hover_cell.delete_content(self._inventory)
+
+            self._main_screen.blit(store_surf, (0, 0))
+
+            self._counter.draw(self._main_screen)
+
+            pg.display.update()
+
     def inventory(self) -> None:
         inventory_surf = pg.Surface((self.MONITOR_W * 0.4, self.MONITOR_H * 0.5))
         inventory_rect = inventory_surf.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
@@ -620,20 +696,14 @@ class Game:
         for row in range(len(self._inventory.items)):
             for col in range(len(self._inventory.items[0])):
                 cell = self._inventory.items[col][row]
-                rect = pg.draw.rect(inventory_surf, (0, 0, 0),
-                                    (inventory_rect.w * 0.1 + row * (one_piece_w + 20),
-                                     inventory_rect.h * 0.15 + col * (one_piece_h + 20),
-                                     one_piece_w, one_piece_h), 2, 20)
+                rect = pg.rect.Rect(inventory_rect.w * 0.1 + row * (one_piece_w + 20),
+                                    inventory_rect.h * 0.15 + col * (one_piece_h + 20),
+                                    one_piece_w, one_piece_h)
+                cell_obj = Cell(inventory_surf, rect)
                 if cell:
                     item: Loot = cell[1]
-                    count_surf = count_font.render(str(len(cell) - 1), True, (0, 0, 0))
-
-                    image = scale_with_colorkey(item.ITEMS[item.loot_type], (one_piece_w >> 2, one_piece_h >> 2),
-                                                (0, 0, 0))
-                    inventory_surf.blit(image, (rect.centerx - (image.get_width() >> 1),
-                                                rect.centery - (image.get_height() >> 1)))
-                    inventory_surf.blit(count_surf, (rect.right - count_surf.get_width() * 2,
-                                                     rect.bottom - count_surf.get_height()))
+                    image = scale_with_colorkey(item.ITEMS[item.loot_type], (one_piece_w >> 2, one_piece_h >> 2))
+                    cell_obj.change_item(self, cell, count_font, image)
 
         run = True
         while run:
@@ -647,7 +717,7 @@ class Game:
         lvl_height = len(data) * self.TILE_SIZE
         lvl_width = len(data[0]) * self.TILE_SIZE
         lvl_map = pg.Surface((lvl_width, lvl_height))
-        lvl_map.blit(self.FILL_BG, (0, 0))
+        lvl_map.fill(self.BACKGROUND)
 
         for y in range(len(data)):
             for x in range(len(data[0])):
