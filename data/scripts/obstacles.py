@@ -42,13 +42,6 @@ class SimpleObject(pg.sprite.Sprite):
         self._hp = 3
         self.game = game
 
-    def check_position(self, player) -> bool:
-        player_rect = player.rect
-        if (self.rect.top - 80 < player_rect.centery < self.rect.bottom + 70
-                and self.rect.left - 80 < player_rect.centerx < self.rect.right + 70):
-            return True
-        return False
-
     def hit(self, game: 'main.Game', pos: tuple[int, int]):
         create_sparks(game, pos, 600, self.MATERIAL)
         self._hp -= 1
@@ -69,12 +62,6 @@ class Chest(SimpleObject):
         super().__init__(game, Objects.CHEST, pos_x, pos_y, *groups)
         self.is_open = False
         self.game = game
-
-    @staticmethod
-    def show_hint(game: 'main.Game', coords: tuple[int, int], screen: pg.Surface) -> None:
-        hint = DefaultButton(coords, 150, 100, game.HINT_BUTTON,
-                             text='space', text_size=30)
-        hint.draw(screen)
 
     def open_chest(self) -> None:
         keys = pg.key.get_pressed()

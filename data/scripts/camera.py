@@ -1,5 +1,6 @@
 import pygame as pg
-from data.scripts.sprites import Hero
+from data.scripts.sprites import Hero, Enemies
+
 pg.init()
 
 
@@ -26,7 +27,8 @@ class CameraGroup(pg.sprite.Group):
         self.center_camera(target)
         return self.offset
 
-    def custom_draw(self, player: Hero, screen: pg.Surface, money_counter, store: tuple[pg.Surface, pg.Rect]) -> None:
+    def custom_draw(self, player: Hero, screen: pg.Surface, money_counter, store: tuple[pg.Surface, pg.Rect],
+                    is_win: bool = False) -> None:
         self.center_camera(player)
 
         ground_offset = self._ground_rect.topleft - self.offset
@@ -38,5 +40,9 @@ class CameraGroup(pg.sprite.Group):
 
         for sprite in self.sprites():
             offset_pos = sprite.rect.topleft - self.offset
-            screen.blit(sprite.image, offset_pos)
-        player.update(screen, self.offset, money_counter)
+            if not (is_win and isinstance(sprite, Enemies)):
+                screen.blit(sprite.image, offset_pos)
+        if is_win:
+            player.draw(screen)
+        else:
+            player.update(screen, self.offset, money_counter)
