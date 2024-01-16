@@ -136,11 +136,11 @@ class Game:
 
     def create_save_button(self, save_number: int, pos: tuple[int, int], file_window_rect: pg.Rect,
                            font: pg.font.Font, group: ButtonGroup,
-                           sql_cursor: sqlite3.Cursor) -> tuple[pg.Surface, pg.Rect, pg.Surface, pg.Rect]:
+                           sql_cur: sqlite3.Cursor) -> tuple[DefaultButton, pg.Surface, pg.Rect, pg.Surface, pg.Rect]:
         file_1_button = DefaultButton(pos, file_window_rect.w * 0.7, file_window_rect.h * 0.16, self.SAVE_BUTTON,
                                       sound='click.wav', group=group)
         file_1_button_rect = file_1_button._rect
-        file_1_count = sql_cursor.execute(f'''SELECT money FROM hero_stats
+        file_1_count = sql_cur.execute(f'''SELECT money FROM hero_stats
          WHERE save_id == "{save_number}"''').fetchone()[0]
         count_surf = font.render(f'money: {file_1_count}', True, (255, 255, 255))
         count_rect = count_surf.get_rect(topleft=(file_1_button_rect.centerx + (file_1_button_rect.w >> 2),
@@ -148,7 +148,7 @@ class Game:
         file_name_surf = font.render(f'File {save_number}', True, (255, 255, 255))
         file_name_rect = file_name_surf.get_rect(topleft=(file_1_button_rect.left + 20, file_1_button_rect.top + 20))
 
-        return count_surf, count_rect, file_name_surf, file_name_rect
+        return file_1_button, count_surf, count_rect, file_name_surf, file_name_rect
 
     def main_menu(self) -> None:
         con = sqlite3.connect('data/saves/saves.sqlite')
@@ -211,15 +211,18 @@ class Game:
         back_btn = DefaultButton((file_rect.left + file_rect.w * 0.05, file_rect.top + file_rect.h * 0.05),
                                  file_rect.w * 0.1, file_rect.h * 0.1, self.SAVE_BUTTON, sound='click.wav',
                                  text='<-', text_size=self._font_size, group=file_buttons)
-        count_surf_1, count_rect_1, file_name_1, file_name_1_rect = self.create_save_button(1, (
+        file_1_btn, count_surf_1, count_rect_1, file_name_1, file_name_1_rect = self.create_save_button(1,
+                                                                                                        (
             file_rect.centerx, file_rect.top + file_rect.h * 0.23), file_rect, files_font, file_buttons, cur)
         delete_1 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.21),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
-        count_surf_2, count_rect_2, file_name_2, file_name_2_rect = self.create_save_button(2, (
+        file_2_btn, count_surf_2, count_rect_2, file_name_2, file_name_2_rect = self.create_save_button(2,
+                                                                                                        (
             file_rect.centerx, file_rect.top + file_rect.h * 0.53), file_rect, files_font, file_buttons, cur)
         delete_2 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.51),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
-        count_surf_3, count_rect_3, file_name_3, file_name_3_rect = self.create_save_button(3, (
+        file_3_btn, count_surf_3, count_rect_3, file_name_3, file_name_3_rect = self.create_save_button(3,
+                                                                                                        (
             file_rect.centerx, file_rect.top + file_rect.h * 0.83), file_rect, files_font, file_buttons, cur)
         delete_1 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.81),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
@@ -243,6 +246,9 @@ class Game:
                     self.settings_menu()
                 elif event.type == pg.USEREVENT and event.button == credits_button:
                     show_credits = not show_credits
+                elif event.type == pg.USEREVENT and event.button == file_1_btn:
+                    run = False
+                    self.select_level()
 
                 buttons_group.handle(event)
                 if show_file_select:
