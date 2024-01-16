@@ -1,8 +1,10 @@
 import os.path
 import random
+import sqlite3
 import sys
 import time
 
+import pandas as pd
 import pygame as pg
 
 pg.display.set_mode((0, 0))
@@ -42,21 +44,22 @@ class Game:
     SETTINGS_BUTTON = sheet.get_frames(1, 1451, 345, 2, colorkey=(0, 0, 0))
     CREDITS_BUTTON = sheet.get_frames(2, 1451, 345, 2, colorkey=(0, 0, 0))
     QUIT_BUTTON = sheet.cut_image((0, 1035), 1451, 345, colorkey=(0, 0, 0))
+    SAVE_BUTTON = pg.image.load('data/images/UI/save_btn.png')
+    TRASH = pg.image.load('data/images/UI/trash-can.png')
 
     BUTTON = load_with_colorkey('data/images/UI/button.png')
     HINT_BUTTON = load_with_colorkey('data/images/UI/hint_btn.png')
-    STORE_BUTTON = load_with_colorkey('data/images/UI/store_btn.png')
     LEFT_ARROW = pg.image.load('data/images/UI/left_arrow.png')
     RIGHT_ARROW = pg.image.load('data/images/UI/right_arrow.png')
 
     HEART_IMG = pg.transform.scale(pg.image.load('data/images/UI/heart.png'), (48, 48))
 
     HERO_SPRITESHEET = SpriteSheet(pg.image.load('data/images/creatures/hero.png'))
-    HERO_IDLE = HERO_SPRITESHEET.get_frames(0, 16, 16, 18, new_size=(64, 64),
+    HERO_IDLE = HERO_SPRITESHEET.get_frames(0, 16, 16, 18, new_size=(54, 54),
                                             colorkey=(0, 0, 0))
-    HERO_MOVE = HERO_SPRITESHEET.get_frames(1, 16, 16, 2, new_size=(64, 64),
+    HERO_MOVE = HERO_SPRITESHEET.get_frames(1, 16, 16, 2, new_size=(54, 54),
                                             colorkey=(0, 0, 0))
-    HERO_HIT = HERO_SPRITESHEET.get_frames(2, 16, 16, 8, new_size=(64, 64),
+    HERO_HIT = HERO_SPRITESHEET.get_frames(2, 16, 16, 8, new_size=(54, 54),
                                            colorkey=(0, 0, 0))
 
     sheet = SpriteSheet(pg.image.load('data/images/objects/obstacles.png'))
@@ -89,15 +92,18 @@ class Game:
         MAPS_DICT[number] = (pg.image.load(f'data/maps/map_previews/{image}'), image)
 
     def __init__(self) -> None:
+        settings = pd.read_csv('data/saves/settings.csv', delimiter=';')
+        settings = settings['value']
+
         self._to_quit = False
         self._main_run = False
 
-        self._interface_volume = 1.0
+        self._interface_volume = settings[0]
 
-        self._effects_volume = 1.0
+        self._effects_volume = settings[1]
 
         self._music_sounds = SoundsList()
-        self._music_volume = 1.0
+        self._music_volume = settings[2]
 
         self._all_sprites = pg.sprite.Group()
         self._obstacles = pg.sprite.Group()
@@ -128,7 +134,26 @@ class Game:
     def main(self) -> None:
         self.main_menu()
 
+    def create_save_button(self, save_number: int, pos: tuple[int, int], file_window_rect: pg.Rect,
+                           font: pg.font.Font, group: ButtonGroup,
+                           sql_cursor: sqlite3.Cursor) -> tuple[pg.Surface, pg.Rect, pg.Surface, pg.Rect]:
+        file_1_button = DefaultButton(pos, file_window_rect.w * 0.7, file_window_rect.h * 0.16, self.SAVE_BUTTON,
+                                      sound='click.wav', group=group)
+        file_1_button_rect = file_1_button._rect
+        file_1_count = sql_cursor.execute(f'''SELECT money FROM hero_stats
+         WHERE save_id == "{save_number}"''').fetchone()[0]
+        count_surf = font.render(f'money: {file_1_count}', True, (255, 255, 255))
+        count_rect = count_surf.get_rect(topleft=(file_1_button_rect.centerx + (file_1_button_rect.w >> 2),
+                                                  file_1_button_rect.bottom - 50))
+        file_name_surf = font.render(f'File {save_number}', True, (255, 255, 255))
+        file_name_rect = file_name_surf.get_rect(topleft=(file_1_button_rect.left + 20, file_1_button_rect.top + 20))
+
+        return count_surf, count_rect, file_name_surf, file_name_rect
+
     def main_menu(self) -> None:
+        con = sqlite3.connect('data/saves/saves.sqlite')
+        cur = con.cursor()
+
         screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
 
         buttons_group = ButtonGroup()
@@ -176,16 +201,39 @@ class Game:
         credits_surf.fill('black')
         credits_surf.set_alpha(128)
 
+        file_surf = pg.Surface((self.MONITOR_W * 0.4, self.MONITOR_H * 0.6))
+        file_rect = file_surf.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
+        file_surf.fill((0, 0, 0))
+        file_surf.set_alpha(128)
+        files_font = pg.font.Font(None, round(self._font_size * 0.5))
+        file_buttons = ButtonGroup()
+
+        back_btn = DefaultButton((file_rect.left + file_rect.w * 0.05, file_rect.top + file_rect.h * 0.05),
+                                 file_rect.w * 0.1, file_rect.h * 0.1, self.SAVE_BUTTON, sound='click.wav',
+                                 text='<-', text_size=self._font_size, group=file_buttons)
+        count_surf_1, count_rect_1, file_name_1, file_name_1_rect = self.create_save_button(1, (
+            file_rect.centerx, file_rect.top + file_rect.h * 0.23), file_rect, files_font, file_buttons, cur)
+        delete_1 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.21),
+                                 50, 50, self.TRASH, sound='click.wav', group=file_buttons)
+        count_surf_2, count_rect_2, file_name_2, file_name_2_rect = self.create_save_button(2, (
+            file_rect.centerx, file_rect.top + file_rect.h * 0.53), file_rect, files_font, file_buttons, cur)
+        delete_2 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.51),
+                                 50, 50, self.TRASH, sound='click.wav', group=file_buttons)
+        count_surf_3, count_rect_3, file_name_3, file_name_3_rect = self.create_save_button(3, (
+            file_rect.centerx, file_rect.top + file_rect.h * 0.83), file_rect, files_font, file_buttons, cur)
+        delete_1 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.81),
+                                 50, 50, self.TRASH, sound='click.wav', group=file_buttons)
+
         clock = pg.time.Clock()
         show_credits = False
+        show_file_select = False
         run = True
         while run:
             clock.tick(self.FPS)
 
             for event in pg.event.get():
-                if event.type == pg.USEREVENT and event.button == start_button:
-                    run = False
-                    self.select_level()
+                if event.type == pg.USEREVENT and (event.button == start_button or event.button == back_btn):
+                    show_file_select = not show_file_select
                 elif (event.type == pg.USEREVENT and event.button == quit_button) or event.type == pg.QUIT:
                     run = False
                     pg.time.delay(500)
@@ -195,8 +243,12 @@ class Game:
                     self.settings_menu()
                 elif event.type == pg.USEREVENT and event.button == credits_button:
                     show_credits = not show_credits
-                buttons_group.handle(event)
 
+                buttons_group.handle(event)
+                if show_file_select:
+                    file_buttons.handle(event)
+
+            file_buttons.check_hover(pg.mouse.get_pos())
             buttons_group.check_hover(pg.mouse.get_pos())
 
             screen.blit(self.MENU_BG, (0, 0))
@@ -210,6 +262,16 @@ class Game:
                             (credits_rect.centerx - (authors_text_surf.get_width() >> 1), credits_rect.top + 50))
                 screen.blit(name_text_surf, name1_rect)
                 screen.blit(name2_text_surf, name2_rect)
+
+            if show_file_select:
+                screen.blit(file_surf, file_rect)
+                file_buttons.draw(screen)
+                screen.blit(count_surf_1, count_rect_1)
+                screen.blit(file_name_1, file_name_1_rect)
+                screen.blit(count_surf_2, count_rect_2)
+                screen.blit(file_name_2, file_name_2_rect)
+                screen.blit(count_surf_3, count_rect_3)
+                screen.blit(file_name_3, file_name_3_rect)
 
             buttons_group.draw(screen)
 
@@ -803,8 +865,13 @@ class Game:
         self._main_screen.blit(lower_text, lower_text_rect)
         return alpha
 
-    @staticmethod
-    def terminate() -> None:
+    def terminate(self) -> None:
+        settings = pd.read_csv('data/saves/settings.csv', delimiter=';')
+        settings.at[0, 'value'] = self._interface_volume
+        settings.at[1, 'value'] = self._effects_volume
+        settings.at[2, 'value'] = self._music_volume
+        settings.to_csv('data/saves/settings.csv', index=False, sep=';')
+
         pg.quit()
         sys.exit(1)
 
