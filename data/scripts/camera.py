@@ -28,7 +28,7 @@ class CameraGroup(pg.sprite.Group):
         return self.offset
 
     def custom_draw(self, player: Hero, screen: pg.Surface, money_counter, store: tuple[pg.Surface, pg.Rect],
-                    is_win: bool = False) -> None:
+                    is_pause: bool = False) -> None:
         self.center_camera(player)
 
         ground_offset = self._ground_rect.topleft - self.offset
@@ -40,9 +40,9 @@ class CameraGroup(pg.sprite.Group):
 
         for sprite in self.sprites():
             offset_pos = sprite.rect.topleft - self.offset
-            if not (is_win and isinstance(sprite, Enemies)):
+            if not (is_pause and isinstance(sprite, Enemies)):
                 screen.blit(sprite.image, offset_pos)
-        if is_win:
+        if is_pause:
             player.draw(screen)
         else:
             player.update(screen, self.offset, money_counter)

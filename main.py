@@ -47,7 +47,11 @@ class Game:
     SAVE_BUTTON = pg.image.load('data/images/UI/save_btn.png')
     TRASH = pg.image.load('data/images/UI/trash-can.png')
 
+    sheet = SpriteSheet(pg.image.load('data/images/UI/wooden-buttons.png'))
     BUTTON = load_with_colorkey('data/images/UI/button.png')
+    PAUSE_BUTTON = sheet.cut_image((1957, 2503), 1636, 629, colorkey=(0, 0, 0))
+    PAUSE_MENU = sheet.cut_image((1961, 1634), 1630, 633, colorkey=(0, 0, 0))
+    LEVEL_BTN = sheet.cut_image((35, 0), 1660, 580, colorkey=(0, 0, 0))
     HINT_BUTTON = load_with_colorkey('data/images/UI/hint_btn.png')
     LEFT_ARROW = pg.image.load('data/images/UI/left_arrow.png')
     RIGHT_ARROW = pg.image.load('data/images/UI/right_arrow.png')
@@ -94,6 +98,7 @@ class Game:
     def __init__(self) -> None:
         settings = pd.read_csv('data/saves/settings.csv', delimiter=';')
         settings = settings['value']
+        self._selected_save_file = 0
 
         self._to_quit = False
         self._main_run = False
@@ -149,6 +154,18 @@ class Game:
         file_name_rect = file_name_surf.get_rect(topleft=(file_1_button_rect.left + 20, file_1_button_rect.top + 20))
 
         return file_1_button, count_surf, count_rect, file_name_surf, file_name_rect
+
+    @staticmethod
+    def _clear_save_file(file: int, font: pg.font.Font) -> pg.Surface:
+        con = sqlite3.connect('data/saves/saves.sqlite')
+        cur = con.cursor()
+        cur.execute(f"""UPDATE hero_stats SET hp = 100, speed = 6, money = 0
+    WHERE save_id == {file}""")
+        cur.execute(f"""UPDATE levels set [level 1] = 0, [level 2] = 0, [level 3] = 0, [level 4] = 0, [level 5] = 0
+    WHERE save_id == {file}""")
+        con.commit()
+
+        return font.render(f'money: 0', True, (255, 255, 255))
 
     def main_menu(self) -> None:
         con = sqlite3.connect('data/saves/saves.sqlite')
@@ -211,20 +228,21 @@ class Game:
         back_btn = DefaultButton((file_rect.left + file_rect.w * 0.05, file_rect.top + file_rect.h * 0.05),
                                  file_rect.w * 0.1, file_rect.h * 0.1, self.SAVE_BUTTON, sound='click.wav',
                                  text='<-', text_size=self._font_size, group=file_buttons)
-        file_1_btn, count_surf_1, count_rect_1, file_name_1, file_name_1_rect = self.create_save_button(1,
-                                                                                                        (
+        (file_btn_1, count_surf_1, count_rect_1,
+         file_name_1,
+         file_name_1_rect) = self.create_save_button(1, (
             file_rect.centerx, file_rect.top + file_rect.h * 0.23), file_rect, files_font, file_buttons, cur)
         delete_1 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.21),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
-        file_2_btn, count_surf_2, count_rect_2, file_name_2, file_name_2_rect = self.create_save_button(2,
-                                                                                                        (
+        (file_btn_2, count_surf_2, count_rect_2,
+         file_name_2, file_name_2_rect) = self.create_save_button(2, (
             file_rect.centerx, file_rect.top + file_rect.h * 0.53), file_rect, files_font, file_buttons, cur)
         delete_2 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.51),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
-        file_3_btn, count_surf_3, count_rect_3, file_name_3, file_name_3_rect = self.create_save_button(3,
-                                                                                                        (
+        (file_btn_3, count_surf_3, count_rect_3,
+         file_name_3, file_name_3_rect) = self.create_save_button(3, (
             file_rect.centerx, file_rect.top + file_rect.h * 0.83), file_rect, files_font, file_buttons, cur)
-        delete_1 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.81),
+        delete_3 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.81),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
 
         clock = pg.time.Clock()
@@ -246,9 +264,26 @@ class Game:
                     self.settings_menu()
                 elif event.type == pg.USEREVENT and event.button == credits_button:
                     show_credits = not show_credits
-                elif event.type == pg.USEREVENT and event.button == file_1_btn:
+
+                elif event.type == pg.USEREVENT and event.button == file_btn_1:
                     run = False
+                    self._selected_save_file = 1
                     self.select_level()
+                elif event.type == pg.USEREVENT and event.button == file_btn_2:
+                    run = False
+                    self._selected_save_file = 2
+                    self.select_level()
+                elif event.type == pg.USEREVENT and event.button == file_btn_3:
+                    run = False
+                    self._selected_save_file = 3
+                    self.select_level()
+
+                elif event.type == pg.USEREVENT and event.button == delete_1:
+                    count_surf_1 = self._clear_save_file(1, files_font)
+                elif event.type == pg.USEREVENT and event.button == delete_2:
+                    count_surf_2 = self._clear_save_file(2, files_font)
+                elif event.type == pg.USEREVENT and event.button == delete_3:
+                    count_surf_3 = self._clear_save_file(3, files_font)
 
                 buttons_group.handle(event)
                 if show_file_select:
@@ -293,9 +328,9 @@ class Game:
             *self.MAPS_DICT[self.current_map % len(self.MAPS_DICT)])
 
         buttons_group = ButtonGroup()
-        return_btn = DefaultButton((150, 100), 200, 100,
-                                   self.BUTTON, text='Return', text_size=self._font_size,
-                                   sound='click.wav', group=buttons_group)
+        return_btn = DefaultButton((150, 100), self.MONITOR_W * 0.1, self.MONITOR_H * 0.05,
+                                   self.LEVEL_BTN, text='Return', text_size=self._font_size,
+                                   sound='click.wav', group=buttons_group, colorkey=(0, 0, 0))
         next_map = DefaultButton(((self.MONITOR_W >> 1) + (preview_rect.width >> 1) + 30, self.MONITOR_H >> 1),
                                  self.MONITOR_W * 0.02, 50, self.RIGHT_ARROW, sound='click.wav',
                                  group=buttons_group)
@@ -303,8 +338,8 @@ class Game:
                                      self.MONITOR_W * 0.02, 50, self.LEFT_ARROW, sound='click.wav',
                                      group=buttons_group)
         start = DefaultButton((self.MONITOR_W >> 1, self.MONITOR_H * 0.7),
-                              self.MONITOR_W * 0.1, self.MONITOR_H * 0.1, self.BUTTON, sound='click.wav',
-                              group=buttons_group, text='Start', text_size=self._font_size)
+                              self.MONITOR_W * 0.1, self.MONITOR_H * 0.05, self.LEVEL_BTN, sound='click.wav',
+                              group=buttons_group, text='Start', text_size=self._font_size, colorkey=(0, 0, 0))
 
         run = True
         while run:
@@ -343,9 +378,19 @@ class Game:
             pg.display.update()
 
     def get_preview_values(self, image: pg.Surface, name: str):
+        con = sqlite3.connect('data/saves/saves.sqlite')
+        cur = con.cursor()
+
         preview_img = pg.transform.scale(image, (self.MONITOR_W * 0.3, self.MONITOR_H * 0.25))
         name = name[:name.find('.')]
-        name_surf = self._font.render(name, True, (0, 0, 0))
+
+        if cur.execute(f"""SELECT [{name}] FROM levels
+         WHERE save_id == {self._selected_save_file}""").fetchone()[0] == 1:
+            write_name = name + ' (completed)'
+        else:
+            write_name = name
+
+        name_surf = self._font.render(write_name, True, (0, 0, 0))
         preview_rect = preview_img.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
         name_rect = name_surf.get_rect(center=(preview_rect.midtop[0], preview_rect.midtop[1] - 100))
 
@@ -514,10 +559,49 @@ class Game:
             buttons_group.draw(screen)
             pg.display.update()
 
-    def pause_menu(self) -> None:
+    def confirm_choice(self, store_frame: int, pause_surf: pg.Surface, pause_rect: pg.Rect,
+                       pause_buttons: ButtonGroup) -> bool:
+        confirm_surf = pg.Surface((self.MONITOR_W * 0.2, self.MONITOR_H * 0.2))
+        confirm_rect = confirm_surf.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
+        confirm_surf.set_alpha(170)
+        text_surf = (pg.font.Font(None, round(self._font_size * 0.5)).
+                     render('Are you sure you want to exit?', True, (255, 255, 255)))
+        text_rect = text_surf.get_rect(center=(confirm_rect.centerx, confirm_rect.top + confirm_rect.h * 0.2))
+
+        button_group = ButtonGroup()
+        yes_btn = DefaultButton((confirm_rect.left + confirm_rect.w * 0.3, confirm_rect.centery),
+                                confirm_rect.w * 0.3, confirm_rect.h * 0.2, self.SAVE_BUTTON, sound='click.wav',
+                                text='YES', text_size=round(self._font_size * 0.5), group=button_group)
+        no_btn = DefaultButton((confirm_rect.left + confirm_rect.w * 0.7, confirm_rect.centery),
+                               confirm_rect.w * 0.3, confirm_rect.h * 0.2, self.SAVE_BUTTON, sound='click.wav',
+                               text='NO', text_size=round(self._font_size * 0.5), group=button_group)
+
+        run = True
+        while run:
+            for event in pg.event.get():
+                if ((event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE)
+                        or (event.type == pg.USEREVENT and event.button == no_btn)):
+                    return False
+                elif event.type == pg.USEREVENT and event.button == yes_btn:
+                    return True
+
+                button_group.handle(event)
+            button_group.check_hover(pg.mouse.get_pos())
+
+            self._camera_group.custom_draw(self._hero, self._main_screen, self._counter,
+                                           (self.STORE_ANIM[store_frame % 4], self.store_rect), True)
+            pause_buttons.draw(self._main_screen)
+            self._main_screen.blit(pause_surf, pause_rect)
+            self._main_screen.blit(confirm_surf, confirm_rect)
+            button_group.draw(self._main_screen)
+            self._main_screen.blit(text_surf, text_rect)
+
+            pg.display.update()
+
+    def pause_menu(self, store_frame: int) -> None:
         pause_surf = pg.Surface((480, 720), depth=32)
         pause_surf.fill((102, 109, 112))
-        pause_surf.set_alpha(1)
+        pause_surf.set_alpha(180)
 
         pause_pos = (self.MONITOR_W >> 1, self.MONITOR_H >> 1)
         pause_rect = pause_surf.get_rect(center=pause_pos)
@@ -525,13 +609,13 @@ class Game:
         pause_buttons = ButtonGroup()
         interface_sounds = SoundsList()
 
-        continue_button = DefaultButton((pause_rect.centerx, pause_rect.centery - 200), 200, 100,
-                                        self.BUTTON, text='continue', text_size=self._font_size,
-                                        sound='click.wav', group=pause_buttons)
+        continue_button = DefaultButton((pause_rect.centerx, pause_rect.centery - 200), 250, 100,
+                                        self.PAUSE_BUTTON, text='continue', text_size=self._font_size,
+                                        sound='click.wav', group=pause_buttons, colorkey=(0, 0, 0))
         interface_sounds.add(continue_button._sound)
-        quit_to_menu = DefaultButton((pause_rect.centerx, pause_rect.centery + 200), 200, 100,
-                                     self.BUTTON, text='menu', text_size=self._font_size,
-                                     sound='click.wav', group=pause_buttons)
+        quit_to_menu = DefaultButton((pause_rect.centerx, pause_rect.centery + 200), 200, 80,
+                                     self.PAUSE_MENU, text='menu', text_size=self._font_size,
+                                     sound='click.wav', group=pause_buttons, colorkey=(0, 0, 0))
         interface_sounds.add(quit_to_menu._sound)
         quit_from_the_game = DefaultButton((pause_rect.centerx, pause_rect.centery + 300), 200, 50,
                                            self.QUIT_BUTTON, sound='click.wav', group=pause_buttons)
@@ -546,21 +630,33 @@ class Game:
                         or (event.type == pg.USEREVENT and event.button == continue_button):
                     run = False
                 elif event.type == pg.USEREVENT and event.button == quit_to_menu:
-                    run = False
-                    self._main_run = False
-                    self.main_menu()
+                    if self.confirm_choice(store_frame, pause_surf, pause_rect, pause_buttons):
+                        run = False
+                        self._main_run = False
+                        self.select_level()
                 elif (event.type == pg.USEREVENT and event.button == quit_from_the_game) or event.type == pg.QUIT:
-                    pg.time.delay(500)
-                    self.terminate()
+                    if self.confirm_choice(store_frame, pause_surf, pause_rect, pause_buttons):
+                        pg.time.delay(500)
+                        self.terminate()
                 pause_buttons.handle(event)
+
+            self._camera_group.custom_draw(self._hero, self._main_screen, self._counter,
+                                           (self.STORE_ANIM[store_frame % 4], self.store_rect), True)
 
             self._main_screen.blit(pause_surf, pause_rect)
 
             pause_buttons.check_hover(pg.mouse.get_pos())
             pause_buttons.draw(self._main_screen)
+
             pg.display.update()
 
-    def restart_game(self, lvl_name: str) -> None:
+    def restart_game(self, lvl_name: str) -> int:
+        con = sqlite3.connect('data/saves/saves.sqlite')
+        cur = con.cursor()
+
+        hero_hp, hero_speed, start_money = cur.execute(f"""SELECT hp, speed, money FROM hero_stats
+    WHERE save_id == {self._selected_save_file}""").fetchall()[0]
+
         self._main_screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
         if self._all_sprites:
             for sprite in self._all_sprites:
@@ -580,32 +676,37 @@ class Game:
         self._borders.append(Border(self, -30, -30, -30, map_height + 30))  # Left
         self._borders.append(Border(self, map_width + 30, map_width + 30, -30, map_height + 30))  # Right
 
-        self._hero = Hero(self, player_pos, self.FPS, 5,
+        self._hero = Hero(self, player_pos, self.FPS, hero_hp, hero_speed, 5,
                           self.HERO_IDLE, self.HERO_MOVE, self.HERO_HIT)
         self._inventory = Inventory(self._hero)
 
+        return start_money
+
     def game(self, lvl_name: str):
-        self.restart_game(lvl_name)
+        start_money = self.restart_game(lvl_name)
         self._hero: Hero
-        start_score = 0
 
         self.EFFECTS_SOUNDS.set_volume(self._effects_volume)
         cur_sound = 0
 
         ui = ButtonGroup()
         ui_sprites = pg.sprite.Group()
-        hp_bar = Slider((75, 20), 300, 50, (5, 5, 5), (227, 25, 25), 100)
+        hp_bar = Slider((75, 20), 300, 50, (5, 5, 5),
+                        (227, 25, 25), self._hero.get_cur_hp())
         heart = pg.sprite.Sprite()
         heart.image = self.HEART_IMG
         heart.rect = (20, 20, 64, 64)
         ui_sprites.add(heart)
         ui.add(hp_bar)
-        self._counter = Counter((self.MONITOR_W - 250, 20), 300, 50,
+        self._counter = Counter((self.MONITOR_W - 250, 20), 300, 50, start_money,
                                 number_color=(255, 255, 255), group=ui)
         end_text_upper = self._font.render("You've reached the quota.",
                                            True, (0, 0, 0, 255)).convert_alpha()
         end_text_lower = self._font.render("press Enter to leave.",
                                            True, (0, 0, 0, 255)).convert_alpha()
+        goal_text = (pg.font.Font(None, round(0.5 * self._font_size)).
+                     render(f'goal: ${self._map_conditions['win_count']}', True, (0, 0, 0)))
+        goal_text_rect = goal_text.get_rect(center=(self.MONITOR_W - 100, 100))
         alpha_lvl = 255
 
         clock = pg.time.Clock()
@@ -625,7 +726,7 @@ class Game:
 
             for event in pg.event.get():
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-                    self.pause_menu()
+                    self.pause_menu(store_frame)
 
                 elif event.type == pg.KEYDOWN and event.key == pg.K_F5:
                     debug = not debug
@@ -643,7 +744,7 @@ class Game:
 
                 if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and is_win:
                     self._main_run = False
-                    self.win_page(store_frame, start_score)
+                    self.win_page(store_frame, start_money, lvl_name)
 
             self._main_screen.blit(self._field, (0, 0))
             for sprite in self._borders:
@@ -689,13 +790,14 @@ class Game:
             if self._particles.sprites():
                 self._particles.update(self._main_screen)
 
-            if self._counter.get_value() >= self._map_conditions['win_count']:
+            if self._counter.get_value() - start_money >= self._map_conditions['win_count']:
                 is_win = True
                 if alpha_lvl >= 0:
                     alpha_lvl = self.show_win_text(end_text_upper, end_text_lower, alpha_lvl)
 
             ui.draw(self._main_screen)
             ui_sprites.draw(self._main_screen)
+            self._main_screen.blit(goal_text, goal_text_rect)
             if debug:
                 show_coords(self._hero, self._main_screen)
                 show_mouse_coords(pg.mouse.get_pos(), self._main_screen)
@@ -706,7 +808,7 @@ class Game:
         if self._to_quit:
             self.terminate()
 
-    def win_page(self, store_frame: int, start_score: int) -> None:
+    def win_page(self, store_frame: int, start_score: int, lvl_name: str) -> None:
         win_surf = pg.Surface((self.MONITOR_W * 0.4, self.MONITOR_H * 0.6))
         win_surf.set_alpha(128)
         win_rect = win_surf.get_rect(center=(self.MONITOR_W >> 1, self.MONITOR_H >> 1))
@@ -724,7 +826,8 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     run = False
-                    self.main_menu()
+                    self.save_changes(lvl_name)
+                    self.select_level()
 
             self._camera_group.custom_draw(self._hero, self._main_screen, self._counter,
                                            (self.STORE_ANIM[store_frame % 4], self.store_rect), True)
@@ -788,10 +891,11 @@ class Game:
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     run = False
 
-                elif (event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT
-                      and hover_cell.content is not None):
-                    self._counter.change(self._counter.get_value() + hover_cell.cost)
-                    hover_cell.delete_content(self._inventory)
+                if hover_cell:
+                    if (event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT
+                          and hover_cell.content is not None):
+                        self._counter.change(self._counter.get_value() + hover_cell.cost)
+                        hover_cell.delete_content(self._inventory)
 
             self._main_screen.blit(store_surf, (0, 0))
 
@@ -829,6 +933,21 @@ class Game:
                     run = False
             self._main_screen.blit(inventory_surf, inventory_rect)
             pg.display.update()
+
+    def save_changes(self, lvl_name: str) -> None:
+        con = sqlite3.connect('data/saves/saves.sqlite')
+        cur = con.cursor()
+
+        cur.execute(f"""UPDATE hero_stats SET hp = {self._hero._max_hp},
+         speed = {self._hero.SPEED}
+            WHERE save_id == {self._selected_save_file}""")
+        if cur.execute(f"""SELECT [{lvl_name}] FROM levels
+                    WHERE save_id == {self._selected_save_file}""").fetchone()[0] == 0:
+            cur.execute(f"""UPDATE hero_stats SET money = {self._counter.get_value()}
+            WHERE save_id == {self._selected_save_file}""")
+            cur.execute(f"""UPDATE levels SET [{lvl_name}] = '1' 
+                WHERE save_id == {self._selected_save_file}""")
+        con.commit()
 
     def get_map_surface(self, data: list) -> pg.Surface:
         lvl_height = len(data) * self.TILE_SIZE

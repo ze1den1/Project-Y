@@ -72,9 +72,8 @@ class SpriteSheet:
 
 class Hero(pg.sprite.Sprite):
     image = pg.Surface((24, 24))
-    SPEED = 6
 
-    def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int,
+    def __init__(self, game: 'main.Game', position: tuple[int, int], fps: int, hp: int, speed: int,
                  animation_speed: float, *animation) -> None:
         super().__init__(game._all_sprites, game._creatures)
         self.fps = fps
@@ -97,11 +96,13 @@ class Hero(pg.sprite.Sprite):
         self._animations = animation
         self._current_animation = Animations.IDLE_ANIMATION
 
-        self._hp = 100
+        self._max_hp = hp
+        self.hp = hp
+        self.SPEED = speed
         self._inventory = None
 
-    def get_hp(self) -> int:
-        return self._hp
+    def get_cur_hp(self) -> int:
+        return self.hp
 
     def input_check(self) -> None:
         keys = pg.key.get_pressed()

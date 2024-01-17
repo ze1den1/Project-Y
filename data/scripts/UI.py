@@ -31,7 +31,7 @@ class DefaultButton:
                  sound: str = None,
                  text: str = '', text_color: tuple[int, int, int] or str = (255, 255, 255),
                  text_size: int = 36,
-                 group: ButtonGroup = None) -> None:
+                 group: ButtonGroup = None, colorkey: tuple[int, int, int] or str = None) -> None:
         self._text = text
         self._text_color = text_color
         self._sound = None
@@ -42,6 +42,9 @@ class DefaultButton:
         self._hover_image = self._image
         if hover_image is not None:
             self._hover_image = pg.transform.scale(hover_image, (width, height))
+        if colorkey is not None:
+            self._image.set_colorkey(colorkey)
+            self._hover_image.set_colorkey(colorkey)
 
         self._rect = self._image.get_rect(center=pos)
 
@@ -100,18 +103,18 @@ class Slider:
 
 
 class Counter:
-    def __init__(self, pos: tuple[int, int], width: int, height: int,
+    def __init__(self, pos: tuple[int, int], width: int, height: int, start_count: int,
                  number_color: tuple[int, int, int] or str = (0, 0, 0),
                  bg_color: tuple[int, int, int] or str = (0, 0, 0),
                  group: ButtonGroup = None):
         self._rect = pg.rect.Rect(pos[0], pos[1], width, height)
-        self._count = 0
+        self._count = start_count
         self._font = pg.font.Font(None, 80)
         self._color = number_color
         self._counter_surf = pg.Surface((self._rect.width, self._rect.height))
         self._counter_surf.fill(bg_color)
 
-        self._numbers_surf = self._font.render('$' + str(self._count).ljust(4, '0'),
+        self._numbers_surf = self._font.render('$' + str(self._count).rjust(4, '0'),
                                                True, self._color)
 
         if group is not None:
