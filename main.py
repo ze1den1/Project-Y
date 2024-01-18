@@ -98,6 +98,7 @@ class Game:
     def __init__(self) -> None:
         settings = pd.read_csv('data/saves/settings.csv', delimiter=';')
         settings = settings['value']
+
         self._selected_save_file = 0
 
         self._to_quit = False
