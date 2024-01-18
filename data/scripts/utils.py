@@ -5,6 +5,18 @@ import pygame as pg
 from data.scripts.UI import DefaultButton
 
 
+class BlitItems:
+    def __init__(self):
+        self._items = []
+
+    def add(self, img: pg.Surface, rect: pg.Rect) -> None:
+        self._items.append((img, rect))
+
+    def draw(self, screen: pg.Surface):
+        for item in self._items:
+            screen.blit(*item)
+
+
 def scale_with_colorkey(image: pg.Surface, scale: tuple[int, int],
                         colorkey: tuple[int, int, int] or str = (0, 0, 0)) -> pg.Surface:
     image = pg.transform.scale(image, scale)

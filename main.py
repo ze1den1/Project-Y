@@ -10,7 +10,7 @@ import pygame as pg
 pg.display.set_mode((0, 0))
 
 from data.scripts.utils import (load_with_colorkey, scale_with_colorkey, create_bg, show_coords, show_mouse_coords,
-                                show_fps, check_distance, show_hint)
+                                show_fps, check_distance, show_hint, BlitItems)
 from data.scripts.sprites import Hero, SpriteSheet
 from data.scripts.inventory import Inventory, Cell
 from data.scripts.mapReader import get_map_data, get_player_pos
@@ -49,14 +49,21 @@ class Game:
 
     sheet = SpriteSheet(pg.image.load('data/images/UI/wooden-buttons.png'))
     BUTTON = load_with_colorkey('data/images/UI/button.png')
-    PAUSE_BUTTON = sheet.cut_image((1957, 2503), 1636, 629, colorkey=(0, 0, 0))
-    PAUSE_MENU = sheet.cut_image((1961, 1634), 1630, 633, colorkey=(0, 0, 0))
-    LEVEL_BTN = sheet.cut_image((35, 0), 1660, 580, colorkey=(0, 0, 0))
+    PAUSE_BUTTON = sheet.cut_image((1946, 115), 1675, 580, colorkey=(0, 0, 0))
+    PAUSE_MENU = sheet.cut_image((1986, 1755), 1609, 609, colorkey=(0, 0, 0))
+    PAUSE_QUIT = sheet.cut_image((1978, 931), 1610, 602, colorkey=(0, 0, 0))
+    LEVEL_BTN = sheet.cut_image((119, 125), 1665, 571, colorkey=(0, 0, 0))
     HINT_BUTTON = load_with_colorkey('data/images/UI/hint_btn.png')
     LEFT_ARROW = pg.image.load('data/images/UI/left_arrow.png')
     RIGHT_ARROW = pg.image.load('data/images/UI/right_arrow.png')
 
-    HEART_IMG = pg.transform.scale(pg.image.load('data/images/UI/heart.png'), (48, 48))
+    sheet = SpriteSheet(pg.image.load('data/images/UI/UI-perks.png'))
+    HEART_IMG = sheet.cut_image((0, 0), 32, 32, colorkey=(0, 0, 0))
+    SPEED_IMG = sheet.cut_image((32, 0), 32, 32, colorkey=(0, 0, 0))
+    HIT_IMG = sheet.cut_image((64, 0), 32, 32, colorkey=(0, 0, 0))
+    SHIELD_IMG = sheet.cut_image((96, 0), 32, 32, colorkey=(0, 0, 0))
+    SALE_IMG = sheet.cut_image((128, 0), 32, 32, colorkey=(0, 0, 0))
+    POINT_IMG = sheet.cut_image((160, 0), 32, 32, colorkey=(0, 0, 0))
 
     HERO_SPRITESHEET = SpriteSheet(pg.image.load('data/images/creatures/hero.png'))
     HERO_IDLE = HERO_SPRITESHEET.get_frames(0, 16, 16, 18, new_size=(54, 54),
@@ -98,7 +105,6 @@ class Game:
     def __init__(self) -> None:
         settings = pd.read_csv('data/saves/settings.csv', delimiter=';')
         settings = settings['value']
-
         self._selected_save_file = 0
 
         self._to_quit = False
@@ -160,8 +166,10 @@ class Game:
     def _clear_save_file(file: int, font: pg.font.Font) -> pg.Surface:
         con = sqlite3.connect('data/saves/saves.sqlite')
         cur = con.cursor()
-        cur.execute(f"""UPDATE hero_stats SET hp = 100, speed = 6, money = 0
-    WHERE save_id == {file}""")
+        cur.execute(
+            f"""UPDATE hero_stats SET hp = 100, speed = 6, hit = 1, shield = 0, sale = 1, money = 0, spheres = 0
+                WHERE save_id == {file}"""
+        )
         cur.execute(f"""UPDATE levels set [level 1] = 0, [level 2] = 0, [level 3] = 0, [level 4] = 0, [level 5] = 0
     WHERE save_id == {file}""")
         con.commit()
@@ -329,7 +337,8 @@ class Game:
             *self.MAPS_DICT[self.current_map % len(self.MAPS_DICT)])
 
         buttons_group = ButtonGroup()
-        return_btn = DefaultButton((150, 100), self.MONITOR_W * 0.1, self.MONITOR_H * 0.05,
+        return_btn = DefaultButton((self.MONITOR_W * 0.07, self.MONITOR_H * 0.05),
+                                   self.MONITOR_W * 0.1, self.MONITOR_H * 0.05,
                                    self.LEVEL_BTN, text='Return', text_size=self._font_size,
                                    sound='click.wav', group=buttons_group, colorkey=(0, 0, 0))
         next_map = DefaultButton(((self.MONITOR_W >> 1) + (preview_rect.width >> 1) + 30, self.MONITOR_H >> 1),
@@ -338,6 +347,10 @@ class Game:
         previous_map = DefaultButton(((self.MONITOR_W >> 1) - (preview_rect.width >> 1) - 30, self.MONITOR_H >> 1),
                                      self.MONITOR_W * 0.02, 50, self.LEFT_ARROW, sound='click.wav',
                                      group=buttons_group)
+        perks = DefaultButton((self.MONITOR_W * 0.07, self.MONITOR_H * 0.2),
+                              self.MONITOR_W * 0.1, self.MONITOR_H * 0.05,
+                              self.LEVEL_BTN, text='Perks', text_size=self._font_size,
+                              sound='click.wav', group=buttons_group, colorkey=(0, 0, 0))
         start = DefaultButton((self.MONITOR_W >> 1, self.MONITOR_H * 0.7),
                               self.MONITOR_W * 0.1, self.MONITOR_H * 0.05, self.LEVEL_BTN, sound='click.wav',
                               group=buttons_group, text='Start', text_size=self._font_size, colorkey=(0, 0, 0))
@@ -359,6 +372,9 @@ class Game:
                 elif event.type == pg.USEREVENT and event.button == start:
                     run = False
                     self.game(name)
+                elif event.type == pg.USEREVENT and event.button == perks:
+                    run = False
+                    self.perks_window()
 
                 if event.type == pg.QUIT:
                     run = False
@@ -375,6 +391,98 @@ class Game:
                             5)
             screen.blit(name_surf, name_rect)
             screen.blit(preview_img, preview_rect)
+            buttons_group.draw(screen)
+            pg.display.update()
+
+    def set_perk_space(self, pos: tuple[int, int], perk_img: pg.Surface, perk_count: int, cost: int,
+                       draw_group: BlitItems) -> tuple[pg.Rect, pg.Surface, pg.Rect]:
+
+        surf = pg.Surface((self.MONITOR_W * 0.4, self.MONITOR_H * 0.2))
+        perk_space_rect = surf.get_rect(topleft=pos)
+        surf.fill('white')
+        perk_img = scale_with_colorkey(perk_img, (self.MONITOR_W * 0.1, self.MONITOR_W * 0.1), (0, 0, 0))
+        perk_img_rect = perk_img.get_rect(center=(perk_space_rect.left + perk_space_rect.w * 0.1,
+                                                  perk_space_rect.centery))
+        draw_group.add(perk_img, perk_img_rect)
+
+        cur_value = self._font.render(f': {perk_count}', True, (0, 0, 0))
+        cur_value_rect = cur_value.get_rect(topleft=(perk_img_rect.right + 10, perk_img_rect.centery))
+        draw_group.add(cur_value, cur_value_rect)
+
+        cost = self._font.render(str(cost), True, (0, 0, 0))
+        cost_rect = cost.get_rect(center=(perk_img_rect.centerx - 20, perk_img_rect.bottom))
+        sphere = scale_with_colorkey(self.POINT_IMG, (self.MONITOR_W * 0.025, self.MONITOR_W * 0.025))
+        sphere_rect = sphere.get_rect(center=(cost_rect.left - 50, cost_rect.centery))
+        draw_group.add(sphere, sphere_rect)
+        draw_group.add(cost, cost_rect)
+
+        return perk_img_rect, cur_value, cur_value_rect
+
+    def update_perks_changed(self):
+        pass
+
+    def perks_window(self) -> None:
+        con = sqlite3.connect('data/saves/saves.sqlite')
+        cur = con.cursor()
+
+        screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
+        (hp, speed, hit, shield, sale,
+         money, spheres) = cur.execute(f'''SELECT hp, speed, hit, shield, sale, money, spheres FROM hero_stats
+            WHERE save_id == {self._selected_save_file}''').fetchall()[0]
+
+        buttons_group = ButtonGroup()
+        draw_items = BlitItems()
+        return_btn = DefaultButton((self.MONITOR_W * 0.07, self.MONITOR_H * 0.05),
+                                   self.MONITOR_W * 0.1, self.MONITOR_H * 0.05,
+                                   self.LEVEL_BTN, text='Return', text_size=self._font_size,
+                                   sound='click.wav', group=buttons_group, colorkey=(0, 0, 0))
+
+        hp_rect, hp_value, hp_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.15), self.HEART_IMG, hp, 2, draw_items)
+        speed_rect, speed_value, speed_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.45), self.SPEED_IMG, speed, 1, draw_items)
+        shield_rect, shield_value, shield_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.75), self.SHIELD_IMG, shield, 2, draw_items)
+        hit_rect, hit_value, hit_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.6, self.MONITOR_H * 0.15), self.HIT_IMG, hit, 5, draw_items)
+        sale_rect, sale_value, sale_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.6, self.MONITOR_H * 0.45), self.SALE_IMG, sale, 1, draw_items)
+        rects = [hp_rect,
+                 speed_rect,
+                 shield_rect,
+                 hit_rect,
+                 sale_rect]
+
+        screen.fill(self.BACKGROUND)
+        run = True
+        while run:
+            is_hovered = False
+            hover_item = None
+            for item in rects:
+                if item.collidepoint(pg.mouse.get_pos()):
+                    is_hovered = True
+                    hover_item = item
+                    break
+
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    run = False
+                    self.terminate()
+
+                elif (event.type == pg.USEREVENT and event.button == return_btn
+                      or event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
+                    run = False
+                    self.select_level()
+
+                # elif is_hovered and event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT \
+                #         and spheres >= rects[hover_item][0]:
+                #     cur.execute(f"""UPDATE hero_stats SET {rects[hover_item][1]} = """)
+                buttons_group.handle(event)
+
+            buttons_group.check_hover(pg.mouse.get_pos())
+
+            screen.fill(self.BACKGROUND)
+            draw_items.draw(screen)
             buttons_group.draw(screen)
             pg.display.update()
 
@@ -618,8 +726,9 @@ class Game:
                                      self.PAUSE_MENU, text='menu', text_size=self._font_size,
                                      sound='click.wav', group=pause_buttons, colorkey=(0, 0, 0))
         interface_sounds.add(quit_to_menu._sound)
-        quit_from_the_game = DefaultButton((pause_rect.centerx, pause_rect.centery + 300), 200, 50,
-                                           self.QUIT_BUTTON, sound='click.wav', group=pause_buttons)
+        quit_from_the_game = DefaultButton((pause_rect.centerx, pause_rect.centery + 300), 200, 70,
+                                           self.PAUSE_QUIT, text='quit', text_size=self._font_size,
+                                           sound='click.wav', group=pause_buttons, colorkey=(0, 0, 0))
         interface_sounds.add(quit_from_the_game._sound)
 
         interface_sounds.set_volume(self._interface_volume)
@@ -655,7 +764,8 @@ class Game:
         con = sqlite3.connect('data/saves/saves.sqlite')
         cur = con.cursor()
 
-        hero_hp, hero_speed, start_money = cur.execute(f"""SELECT hp, speed, money FROM hero_stats
+        hero_hp, hero_speed, hit, shield, sale, start_money = cur.execute(
+            f"""SELECT hp, speed, hit, shield, sale, money FROM hero_stats
     WHERE save_id == {self._selected_save_file}""").fetchall()[0]
 
         self._main_screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
@@ -677,7 +787,7 @@ class Game:
         self._borders.append(Border(self, -30, -30, -30, map_height + 30))  # Left
         self._borders.append(Border(self, map_width + 30, map_width + 30, -30, map_height + 30))  # Right
 
-        self._hero = Hero(self, player_pos, self.FPS, hero_hp, hero_speed, 5,
+        self._hero = Hero(self, player_pos, self.FPS, hero_hp, hero_speed, hit, 5,
                           self.HERO_IDLE, self.HERO_MOVE, self.HERO_HIT)
         self._inventory = Inventory(self._hero)
 
@@ -695,8 +805,8 @@ class Game:
         hp_bar = Slider((75, 20), 300, 50, (5, 5, 5),
                         (227, 25, 25), self._hero.get_cur_hp())
         heart = pg.sprite.Sprite()
-        heart.image = self.HEART_IMG
-        heart.rect = (20, 20, 64, 64)
+        heart.image = scale_with_colorkey(self.HEART_IMG, (self.MONITOR_W * 0.03, self.MONITOR_W * 0.03))
+        heart.rect = heart.image.get_rect(center=(45, 45))
         ui_sprites.add(heart)
         ui.add(hp_bar)
         self._counter = Counter((self.MONITOR_W - 250, 20), 300, 50, start_money,
@@ -776,7 +886,7 @@ class Game:
                         and self._hero.check_hit(obstacle_offset, obstacle.rect.w, pg.mouse.get_pos())
                         and pg.time.get_ticks() - prev_hit > 800):
                     obstacle.hit(self, (obstacle_offset[0] + (obstacle.rect.w >> 1),
-                                        obstacle_offset[1] + (obstacle.rect.h >> 1)))
+                                        obstacle_offset[1] + (obstacle.rect.h >> 1)), self._hero.hit)
 
                     if obstacle.MATERIAL == Materials.WOOD and obstacle._hp != 0:
                         self.PICKAXE_SOUNDS[1][0].play()
@@ -894,7 +1004,7 @@ class Game:
 
                 if hover_cell:
                     if (event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT
-                          and hover_cell.content is not None):
+                            and hover_cell.content is not None):
                         self._counter.change(self._counter.get_value() + hover_cell.cost)
                         hover_cell.delete_content(self._inventory)
 

@@ -42,9 +42,9 @@ class SimpleObject(pg.sprite.Sprite):
         self._hp = 3
         self.game = game
 
-    def hit(self, game: 'main.Game', pos: tuple[int, int]):
+    def hit(self, game: 'main.Game', pos: tuple[int, int], hit: int):
         create_sparks(game, pos, 600, self.MATERIAL)
-        self._hp -= 1
+        self._hp -= hit
         self.check_brake()
 
     def check_brake(self) -> None:
