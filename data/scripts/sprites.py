@@ -148,6 +148,9 @@ class Hero(pg.sprite.Sprite):
             if collided.loot_type == 4:
                 money_counter.change(money_counter.get_value() + 1)
                 collided.kill()
+            elif collided.loot_type == 5:
+                self.game.game_spheres += 1
+                collided.kill()
             else:
                 for row in range(len(self._inventory.items)):
                     for col in range(len(self._inventory.items[0])):
