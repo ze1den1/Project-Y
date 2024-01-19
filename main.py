@@ -64,6 +64,11 @@ class Game:
     SHIELD_IMG = sheet.cut_image((96, 0), 32, 32, colorkey=(0, 0, 0))
     SALE_IMG = sheet.cut_image((128, 0), 32, 32, colorkey=(0, 0, 0))
     POINT_IMG = sheet.cut_image((160, 0), 32, 32, colorkey=(0, 0, 0))
+    HEART_IMG_HOVER = sheet.cut_image((0, 32), 32, 32, colorkey=(0, 0, 0))
+    SPEED_IMG_HOVER = sheet.cut_image((32, 32), 32, 32, colorkey=(0, 0, 0))
+    HIT_IMG_HOVER = sheet.cut_image((64, 32), 32, 32, colorkey=(0, 0, 0))
+    SHIELD_IMG_HOVER = sheet.cut_image((96, 32), 32, 32, colorkey=(0, 0, 0))
+    SALE_IMG_HOVER = sheet.cut_image((128, 32), 32, 32, colorkey=(0, 0, 0))
 
     HERO_SPRITESHEET = SpriteSheet(pg.image.load('data/images/creatures/hero.png'))
     HERO_IDLE = HERO_SPRITESHEET.get_frames(0, 16, 16, 18, new_size=(54, 54),
@@ -147,23 +152,31 @@ class Game:
         self.main_menu()
 
     def create_save_button(self, save_number: int, pos: tuple[int, int], file_window_rect: pg.Rect,
-                           font: pg.font.Font, group: ButtonGroup,
+                           font: pg.font.Font, group: ButtonGroup, draw_group: BlitItems,
                            sql_cur: sqlite3.Cursor) -> tuple[DefaultButton, pg.Surface, pg.Rect, pg.Surface, pg.Rect]:
         file_1_button = DefaultButton(pos, file_window_rect.w * 0.7, file_window_rect.h * 0.16, self.SAVE_BUTTON,
                                       sound='click.wav', group=group)
         file_1_button_rect = file_1_button._rect
-        file_1_count = sql_cur.execute(f'''SELECT money FROM hero_stats
-         WHERE save_id == "{save_number}"''').fetchone()[0]
-        count_surf = font.render(f'money: {file_1_count}', True, (255, 255, 255))
+        money, points = sql_cur.execute(f'''SELECT money, spheres FROM hero_stats
+         WHERE save_id == "{save_number}"''').fetchall()[0]
+
+        count_surf = font.render(f'money: {money}', True, (255, 255, 255))
         count_rect = count_surf.get_rect(topleft=(file_1_button_rect.centerx + (file_1_button_rect.w >> 2),
                                                   file_1_button_rect.bottom - 50))
+        ball_img = scale_with_colorkey(self.POINT_IMG, (self.MONITOR_W * 0.02, self.MONITOR_W * 0.02))
+        ball_rect = ball_img.get_rect(center=(count_rect.left - file_1_button_rect.w * 0.2, count_rect.centery))
+        draw_group.add(ball_img, ball_rect)
+        point_surf = font.render(f': {points}', True, (255, 255, 255))
+        point_rect = point_surf.get_rect(center=(ball_rect.right + 10, ball_rect.centery))
+
         file_name_surf = font.render(f'File {save_number}', True, (255, 255, 255))
         file_name_rect = file_name_surf.get_rect(topleft=(file_1_button_rect.left + 20, file_1_button_rect.top + 20))
+        draw_group.add(file_name_surf, file_name_rect)
 
-        return file_1_button, count_surf, count_rect, file_name_surf, file_name_rect
+        return file_1_button, count_surf, count_rect, point_surf, point_rect
 
     @staticmethod
-    def _clear_save_file(file: int, font: pg.font.Font) -> pg.Surface:
+    def _clear_save_file(file: int, font: pg.font.Font) -> tuple[pg.Surface, pg.Surface]:
         con = sqlite3.connect('data/saves/saves.sqlite')
         cur = con.cursor()
         cur.execute(
@@ -174,7 +187,8 @@ class Game:
     WHERE save_id == {file}""")
         con.commit()
 
-        return font.render(f'money: 0', True, (255, 255, 255))
+        return (font.render(f'money: 0', True, (255, 255, 255)),
+                font.render(': 0', True, (255, 255, 255)))
 
     def main_menu(self) -> None:
         con = sqlite3.connect('data/saves/saves.sqlite')
@@ -234,23 +248,23 @@ class Game:
         files_font = pg.font.Font(None, round(self._font_size * 0.5))
         file_buttons = ButtonGroup()
 
+        draw_group = BlitItems()
         back_btn = DefaultButton((file_rect.left + file_rect.w * 0.05, file_rect.top + file_rect.h * 0.05),
                                  file_rect.w * 0.1, file_rect.h * 0.1, self.SAVE_BUTTON, sound='click.wav',
                                  text='<-', text_size=self._font_size, group=file_buttons)
-        (file_btn_1, count_surf_1, count_rect_1,
-         file_name_1,
-         file_name_1_rect) = self.create_save_button(1, (
-            file_rect.centerx, file_rect.top + file_rect.h * 0.23), file_rect, files_font, file_buttons, cur)
+        (file_btn_1, count_surf_1, count_rect_1, points_1, points_1_rect) = self.create_save_button(1, (
+            file_rect.centerx, file_rect.top + file_rect.h * 0.23), file_rect, files_font,
+                                                                           file_buttons, draw_group, cur)
         delete_1 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.21),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
-        (file_btn_2, count_surf_2, count_rect_2,
-         file_name_2, file_name_2_rect) = self.create_save_button(2, (
-            file_rect.centerx, file_rect.top + file_rect.h * 0.53), file_rect, files_font, file_buttons, cur)
+        (file_btn_2, count_surf_2, count_rect_2, points_2, points_2_rect) = self.create_save_button(2, (
+            file_rect.centerx, file_rect.top + file_rect.h * 0.53), file_rect, files_font,
+                                                                           file_buttons, draw_group, cur)
         delete_2 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.51),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
-        (file_btn_3, count_surf_3, count_rect_3,
-         file_name_3, file_name_3_rect) = self.create_save_button(3, (
-            file_rect.centerx, file_rect.top + file_rect.h * 0.83), file_rect, files_font, file_buttons, cur)
+        (file_btn_3, count_surf_3, count_rect_3, points_3, points_3_rect) = self.create_save_button(3, (
+            file_rect.centerx, file_rect.top + file_rect.h * 0.83), file_rect, files_font,
+                                                                           file_buttons, draw_group, cur)
         delete_3 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.81),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
 
@@ -288,11 +302,11 @@ class Game:
                     self.select_level()
 
                 elif event.type == pg.USEREVENT and event.button == delete_1:
-                    count_surf_1 = self._clear_save_file(1, files_font)
+                    count_surf_1, points_1 = self._clear_save_file(1, files_font)
                 elif event.type == pg.USEREVENT and event.button == delete_2:
-                    count_surf_2 = self._clear_save_file(2, files_font)
+                    count_surf_2, points_2 = self._clear_save_file(2, files_font)
                 elif event.type == pg.USEREVENT and event.button == delete_3:
-                    count_surf_3 = self._clear_save_file(3, files_font)
+                    count_surf_3, points_3 = self._clear_save_file(3, files_font)
 
                 buttons_group.handle(event)
                 if show_file_select:
@@ -317,11 +331,12 @@ class Game:
                 screen.blit(file_surf, file_rect)
                 file_buttons.draw(screen)
                 screen.blit(count_surf_1, count_rect_1)
-                screen.blit(file_name_1, file_name_1_rect)
                 screen.blit(count_surf_2, count_rect_2)
-                screen.blit(file_name_2, file_name_2_rect)
                 screen.blit(count_surf_3, count_rect_3)
-                screen.blit(file_name_3, file_name_3_rect)
+                screen.blit(points_1, points_1_rect)
+                screen.blit(points_2, points_2_rect)
+                screen.blit(points_3, points_3_rect)
+                draw_group.draw(screen)
 
             buttons_group.draw(screen)
 
@@ -358,7 +373,8 @@ class Game:
         run = True
         while run:
             for event in pg.event.get():
-                if event.type == pg.USEREVENT and event.button == return_btn:
+                if ((event.type == pg.USEREVENT and event.button == return_btn) or
+                        (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE)):
                     run = False
                     self.main_menu()
                 elif event.type == pg.USEREVENT and event.button == next_map:
@@ -394,32 +410,33 @@ class Game:
             buttons_group.draw(screen)
             pg.display.update()
 
-    def set_perk_space(self, pos: tuple[int, int], perk_img: pg.Surface, perk_count: int, cost: int,
-                       draw_group: BlitItems) -> tuple[pg.Rect, pg.Surface, pg.Rect]:
+    def set_perk_space(self, pos: tuple[int, int], perk_img: pg.Surface, hover_img: pg.Surface, perk_count: int,
+                       cost: int, draw_group: BlitItems) -> tuple[list, pg.Rect, pg.Surface, pg.Rect]:
 
         surf = pg.Surface((self.MONITOR_W * 0.4, self.MONITOR_H * 0.2))
         perk_space_rect = surf.get_rect(topleft=pos)
         surf.fill('white')
-        perk_img = scale_with_colorkey(perk_img, (self.MONITOR_W * 0.1, self.MONITOR_W * 0.1), (0, 0, 0))
-        perk_img_rect = perk_img.get_rect(center=(perk_space_rect.left + perk_space_rect.w * 0.1,
-                                                  perk_space_rect.centery))
-        draw_group.add(perk_img, perk_img_rect)
+        perk_imgs = [scale_with_colorkey(perk_img, (self.MONITOR_W * 0.1, self.MONITOR_W * 0.1)),
+                     scale_with_colorkey(hover_img, (self.MONITOR_W * 0.1, self.MONITOR_W * 0.1)),
+                     0]
+        perk_img_rect = perk_imgs[0].get_rect(center=(perk_space_rect.left + perk_space_rect.w * 0.1,
+                                                      perk_space_rect.centery))
 
         cur_value = self._font.render(f': {perk_count}', True, (0, 0, 0))
         cur_value_rect = cur_value.get_rect(topleft=(perk_img_rect.right + 10, perk_img_rect.centery))
-        draw_group.add(cur_value, cur_value_rect)
 
         cost = self._font.render(str(cost), True, (0, 0, 0))
-        cost_rect = cost.get_rect(center=(perk_img_rect.centerx - 20, perk_img_rect.bottom))
+        cost_rect = cost.get_rect(center=(perk_img_rect.centerx - 20, perk_img_rect.bottom + 40))
         sphere = scale_with_colorkey(self.POINT_IMG, (self.MONITOR_W * 0.025, self.MONITOR_W * 0.025))
         sphere_rect = sphere.get_rect(center=(cost_rect.left - 50, cost_rect.centery))
         draw_group.add(sphere, sphere_rect)
         draw_group.add(cost, cost_rect)
 
-        return perk_img_rect, cur_value, cur_value_rect
+        return perk_imgs, perk_img_rect, cur_value, cur_value_rect
 
-    def update_perks_changed(self):
-        pass
+    def update_perks_changed(self, name: str, char_dict: dict):
+        font_surf = self._font.render(f':  {char_dict[name]}', True, (0, 0, 0))
+        return font_surf
 
     def perks_window(self) -> None:
         con = sqlite3.connect('data/saves/saves.sqlite')
@@ -429,6 +446,11 @@ class Game:
         (hp, speed, hit, shield, sale,
          money, spheres) = cur.execute(f'''SELECT hp, speed, hit, shield, sale, money, spheres FROM hero_stats
             WHERE save_id == {self._selected_save_file}''').fetchall()[0]
+        characteristics = {'hp': hp,
+                           'speed': speed,
+                           'hit': hit,
+                           'shield': shield,
+                           'sale': sale}
 
         buttons_group = ButtonGroup()
         draw_items = BlitItems()
@@ -437,31 +459,42 @@ class Game:
                                    self.LEVEL_BTN, text='Return', text_size=self._font_size,
                                    sound='click.wav', group=buttons_group, colorkey=(0, 0, 0))
 
-        hp_rect, hp_value, hp_value_rect = self.set_perk_space(
-            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.15), self.HEART_IMG, hp, 2, draw_items)
-        speed_rect, speed_value, speed_value_rect = self.set_perk_space(
-            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.45), self.SPEED_IMG, speed, 1, draw_items)
-        shield_rect, shield_value, shield_value_rect = self.set_perk_space(
-            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.75), self.SHIELD_IMG, shield, 2, draw_items)
-        hit_rect, hit_value, hit_value_rect = self.set_perk_space(
-            (self.MONITOR_W * 0.6, self.MONITOR_H * 0.15), self.HIT_IMG, hit, 5, draw_items)
-        sale_rect, sale_value, sale_value_rect = self.set_perk_space(
-            (self.MONITOR_W * 0.6, self.MONITOR_H * 0.45), self.SALE_IMG, sale, 1, draw_items)
-        rects = [hp_rect,
-                 speed_rect,
-                 shield_rect,
-                 hit_rect,
-                 sale_rect]
+        hp_img, hp_rect, hp_value, hp_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.15), self.HEART_IMG, self.HEART_IMG_HOVER,
+            hp, 2, draw_items)
+        speed_img, speed_rect, speed_value, speed_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.45), self.SPEED_IMG, self.SPEED_IMG_HOVER,
+            speed, 1, draw_items)
+        shield_img, shield_rect, shield_value, shield_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.1, self.MONITOR_H * 0.75), self.SHIELD_IMG, self.SHIELD_IMG_HOVER,
+            shield, 2, draw_items)
+        hit_img, hit_rect, hit_value, hit_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.6, self.MONITOR_H * 0.15), self.HIT_IMG, self.HIT_IMG_HOVER,
+            hit, 5, draw_items)
+        sale_img, sale_rect, sale_value, sale_value_rect = self.set_perk_space(
+            (self.MONITOR_W * 0.6, self.MONITOR_H * 0.45), self.SALE_IMG, self.SALE_IMG_HOVER,
+            sale, 1, draw_items)
+        items = [(hp_rect, hp_img, 2, 'hp'),
+                 (speed_rect, speed_img, 1, 'speed'),
+                 (shield_rect, shield_img, 2, 'shield'),
+                 (hit_rect, hit_img, 5, 'hit'),
+                 (sale_rect, sale_img, 1, 'sale')]
 
         screen.fill(self.BACKGROUND)
         run = True
+        last_hover = hp_img
         while run:
             is_hovered = False
-            hover_item = None
-            for item in rects:
-                if item.collidepoint(pg.mouse.get_pos()):
+            hover_cost = None
+            hover_name = None
+            hover_img = list()
+
+            for item_rect, item_img, item_cost, item_name in items:
+                if item_rect.collidepoint(pg.mouse.get_pos()):
                     is_hovered = True
-                    hover_item = item
+                    hover_cost = item_cost
+                    hover_img = item_img
+                    hover_name = item_name
                     break
 
             for event in pg.event.get():
@@ -469,20 +502,53 @@ class Game:
                     run = False
                     self.terminate()
 
-                elif (event.type == pg.USEREVENT and event.button == return_btn
-                      or event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
+                if is_hovered:
+                    hover_img[-1] = 1
+                    last_hover = hover_img
+                elif not is_hovered:
+                    last_hover[-1] = 0
+
+                if (event.type == pg.USEREVENT and event.button == return_btn
+                        or event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
                     run = False
                     self.select_level()
+                elif (is_hovered and event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT and
+                      spheres >= hover_cost):
+                    spheres -= hover_cost
 
-                # elif is_hovered and event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT \
-                #         and spheres >= rects[hover_item][0]:
-                #     cur.execute(f"""UPDATE hero_stats SET {rects[hover_item][1]} = """)
+                    if hover_name == 'hp' or hover_name == 'shield':
+                        characteristics[hover_name] += 20
+                    else:
+                        characteristics[hover_name] += 1
+
+                    cur.execute(
+                        f"""UPDATE hero_stats SET spheres = {spheres},
+                    '{hover_name}' = '{characteristics[hover_name]}' WHERE save_id == {self._selected_save_file}""")
+                    con.commit()
+                    if hover_name == 'hp':
+                        hp_value = self.update_perks_changed(hover_name, characteristics)
+                    elif hover_name == 'speed':
+                        speed_value = self.update_perks_changed(hover_name, characteristics)
+                    elif hover_name == 'shield':
+                        shield_value = self.update_perks_changed(hover_name, characteristics)
+                    elif hover_name == 'hit':
+                        hit_value = self.update_perks_changed(hover_name, characteristics)
+                    elif hover_name == 'sale':
+                        sale_value = self.update_perks_changed(hover_name, characteristics)
+
                 buttons_group.handle(event)
 
             buttons_group.check_hover(pg.mouse.get_pos())
 
             screen.fill(self.BACKGROUND)
+            for item_rect, item_img, _, _ in items:
+                screen.blit(item_img[item_img[-1]], item_rect)
             draw_items.draw(screen)
+            screen.blit(hp_value, hp_value_rect)
+            screen.blit(speed_value, speed_value_rect)
+            screen.blit(shield_value, shield_value_rect)
+            screen.blit(hit_value, hit_value_rect)
+            screen.blit(sale_value, sale_value_rect)
             buttons_group.draw(screen)
             pg.display.update()
 
