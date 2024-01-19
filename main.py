@@ -254,17 +254,20 @@ class Game:
                                  text='<-', text_size=self._font_size, group=file_buttons)
         (file_btn_1, count_surf_1, count_rect_1, points_1, points_1_rect) = self.create_save_button(1, (
             file_rect.centerx, file_rect.top + file_rect.h * 0.23), file_rect, files_font,
-                                                                           file_buttons, draw_group, cur)
+                                                                                                    file_buttons,
+                                                                                                    draw_group, cur)
         delete_1 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.21),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
         (file_btn_2, count_surf_2, count_rect_2, points_2, points_2_rect) = self.create_save_button(2, (
             file_rect.centerx, file_rect.top + file_rect.h * 0.53), file_rect, files_font,
-                                                                           file_buttons, draw_group, cur)
+                                                                                                    file_buttons,
+                                                                                                    draw_group, cur)
         delete_2 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.51),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
         (file_btn_3, count_surf_3, count_rect_3, points_3, points_3_rect) = self.create_save_button(3, (
             file_rect.centerx, file_rect.top + file_rect.h * 0.83), file_rect, files_font,
-                                                                           file_buttons, draw_group, cur)
+                                                                                                    file_buttons,
+                                                                                                    draw_group, cur)
         delete_3 = DefaultButton((file_rect.right - file_rect.w * 0.1, file_rect.top + file_rect.h * 0.81),
                                  50, 50, self.TRASH, sound='click.wav', group=file_buttons)
 
@@ -434,10 +437,6 @@ class Game:
 
         return perk_imgs, perk_img_rect, cur_value, cur_value_rect
 
-    def update_perks_changed(self, name: str, char_dict: dict):
-        font_surf = self._font.render(f':  {char_dict[name]}', True, (0, 0, 0))
-        return font_surf
-
     def perks_window(self) -> None:
         con = sqlite3.connect('data/saves/saves.sqlite')
         cur = con.cursor()
@@ -479,6 +478,33 @@ class Game:
                  (shield_rect, shield_img, 2, 'shield'),
                  (hit_rect, hit_img, 5, 'hit'),
                  (sale_rect, sale_img, 1, 'sale')]
+
+        surf_for_money = pg.Surface((self.MONITOR_W * 0.2, self.MONITOR_H * 0.05))
+        surf_for_money.fill((0, 0, 0))
+        surf_for_money_rect = surf_for_money.get_rect(topleft=(self.MONITOR_W * 0.9, 0))
+        draw_items.add(surf_for_money, surf_for_money_rect)
+        money_surf = self._font.render(f'$: {money}', True, (255, 255, 255))
+        money_rect = money_surf.get_rect(center=(surf_for_money_rect.left + (money_surf.get_width() >> 1),
+                                                 surf_for_money_rect.centery))
+        sphere_img = scale_with_colorkey(self.POINT_IMG, (self.MONITOR_W * 0.03, self.MONITOR_W * 0.03))
+        sphere_rect = sphere_img.get_rect(center=(money_rect.left + 20, money_rect.bottom + money_rect.h))
+        draw_items.add(sphere_img, sphere_rect)
+        spheres_surf = self._font.render(f': {spheres}', True, (0, 0, 0))
+        spheres_rect = spheres_surf.get_rect(center=(sphere_rect.right + sphere_rect.w * 0.5, sphere_rect.centery))
+
+        buy_text = self._font.render('BUY SPHERES', True, (0, 0, 0))
+        buy_text_rect = buy_text.get_rect(center=(self.MONITOR_W * 0.7, self.MONITOR_H * 0.8))
+        draw_items.add(buy_text, buy_text_rect)
+        sphere_img = scale_with_colorkey(self.POINT_IMG, (self.MONITOR_W * 0.05, self.MONITOR_W * 0.05))
+        sphere_rect = sphere_img.get_rect(center=(buy_text_rect.left, buy_text_rect.bottom + buy_text_rect.h))
+        draw_items.add(sphere_img, sphere_rect)
+        cost_surf = self._font.render('= $100', True, (0, 0, 0))
+        cost_rect = cost_surf.get_rect(center=(sphere_rect.right + sphere_rect.w * 0.5, sphere_rect.centery))
+        draw_items.add(cost_surf, cost_rect)
+        buy_btn = DefaultButton((cost_rect.right + cost_rect.w * 0.7, cost_rect.centery),
+                                self.MONITOR_W * 0.06, self.MONITOR_H * 0.04, self.PAUSE_MENU, colorkey=(0, 0, 0),
+                                sound='click.wav', text='buy', text_size=self._font_size, text_color=(30, 30, 30),
+                                group=buttons_group)
 
         screen.fill(self.BACKGROUND)
         run = True
@@ -526,15 +552,29 @@ class Game:
                     '{hover_name}' = '{characteristics[hover_name]}' WHERE save_id == {self._selected_save_file}""")
                     con.commit()
                     if hover_name == 'hp':
-                        hp_value = self.update_perks_changed(hover_name, characteristics)
+                        hp_value = (self._font.
+                                    render(f':  {characteristics[hover_name]}', True, (0, 0, 0)))
                     elif hover_name == 'speed':
-                        speed_value = self.update_perks_changed(hover_name, characteristics)
+                        speed_value = (self._font.
+                                       render(f':  {characteristics[hover_name]}', True, (0, 0, 0)))
                     elif hover_name == 'shield':
-                        shield_value = self.update_perks_changed(hover_name, characteristics)
+                        shield_value = (self._font.
+                                        render(f':  {characteristics[hover_name]}', True, (0, 0, 0)))
                     elif hover_name == 'hit':
-                        hit_value = self.update_perks_changed(hover_name, characteristics)
+                        hit_value = (self._font.
+                                     render(f':  {characteristics[hover_name]}', True, (0, 0, 0)))
                     elif hover_name == 'sale':
-                        sale_value = self.update_perks_changed(hover_name, characteristics)
+                        sale_value = (self._font.
+                                      render(f':  {characteristics[hover_name]}', True, (0, 0, 0)))
+                    money_surf, spheres_surf = self.change_money_bar(spheres, money)
+                elif event.type == pg.USEREVENT and event.button == buy_btn:
+                    if money >= 100:
+                        spheres += 1
+                        money -= 100
+                        cur.execute(f"""UPDATE hero_stats SET money = {money}, spheres = {spheres}
+                        WHERE save_id == {self._selected_save_file}""")
+                        money_surf, spheres_surf = self.change_money_bar(spheres, money)
+                        con.commit()
 
                 buttons_group.handle(event)
 
@@ -549,8 +589,15 @@ class Game:
             screen.blit(shield_value, shield_value_rect)
             screen.blit(hit_value, hit_value_rect)
             screen.blit(sale_value, sale_value_rect)
+            screen.blit(money_surf, money_rect)
+            screen.blit(spheres_surf, spheres_rect)
             buttons_group.draw(screen)
             pg.display.update()
+
+    def change_money_bar(self, spheres: int, money: int) -> tuple[pg.Surface, pg.Surface]:
+        money_surf = self._font.render(f'$: {money}', True, (255, 255, 255))
+        spheres_surf = self._font.render(f': {spheres}', True, (0, 0, 0))
+        return money_surf, spheres_surf
 
     def get_preview_values(self, image: pg.Surface, name: str):
         con = sqlite3.connect('data/saves/saves.sqlite')
@@ -826,12 +873,12 @@ class Game:
 
             pg.display.update()
 
-    def restart_game(self, lvl_name: str) -> int:
+    def restart_game(self, lvl_name: str) -> tuple[int, int]:
         con = sqlite3.connect('data/saves/saves.sqlite')
         cur = con.cursor()
 
-        hero_hp, hero_speed, hit, shield, sale, start_money = cur.execute(
-            f"""SELECT hp, speed, hit, shield, sale, money FROM hero_stats
+        hero_hp, hero_speed, hit, shield, sale, start_money, spheres = cur.execute(
+            f"""SELECT hp, speed, hit, shield, sale, money, spheres FROM hero_stats
     WHERE save_id == {self._selected_save_file}""").fetchall()[0]
 
         self._main_screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
@@ -857,10 +904,10 @@ class Game:
                           self.HERO_IDLE, self.HERO_MOVE, self.HERO_HIT)
         self._inventory = Inventory(self._hero)
 
-        return start_money
+        return start_money, spheres
 
     def game(self, lvl_name: str):
-        start_money = self.restart_game(lvl_name)
+        start_money, self.game_spheres = self.restart_game(lvl_name)
         self._hero: Hero
 
         self.EFFECTS_SOUNDS.set_volume(self._effects_volume)
@@ -1116,7 +1163,7 @@ class Game:
         cur = con.cursor()
 
         cur.execute(f"""UPDATE hero_stats SET hp = {self._hero._max_hp},
-         speed = {self._hero.SPEED}
+         speed = {self._hero.SPEED}, spheres = {self.game_spheres}
             WHERE save_id == {self._selected_save_file}""")
         if cur.execute(f"""SELECT [{lvl_name}] FROM levels
                     WHERE save_id == {self._selected_save_file}""").fetchone()[0] == 0:

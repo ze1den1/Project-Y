@@ -19,6 +19,7 @@ class Objects(IntEnum):
 
 LOOT_NAMES = {0: 'copper', 1: 'iron', 2: 'ruby', 3: 'sapphire'}
 loot_items = SpriteSheet(pg.image.load('data/images/objects/inventory_items.png'))
+sheet = SpriteSheet(pg.image.load('data/images/UI/UI-perks.png'))
 
 
 class SimpleObject(pg.sprite.Sprite):
@@ -67,34 +68,41 @@ class Chest(SimpleObject):
         keys = pg.key.get_pressed()
 
         if keys[pg.K_SPACE]:
+            rand_num = random.randrange(1, 101)
+            if 1 <= rand_num <= 25:
+                self._spawn_loot(5, 1)
+            else:
+                self._spawn_loot(4, 5)
             self.is_open = True
             self.image = self.game.CHEST_OPEN
-            for i in range(random.randrange(1, 5)):
-                direction = random.randrange(1, 5)
-                if direction == 1:
-                    x1, x2 = -30, 30
-                    y1, y2 = -80, -50
-                elif direction == 2:
-                    x1, x2 = 50, 80
-                    y1, y2 = -30, 30
-                elif direction == 3:
-                    x1, x2 = -30, 30
-                    y1, y2 = 50, 80
+
+    def _spawn_loot(self, loot_type: int, max_count: int) -> None:
+        for i in range(random.randrange(1, max_count + 1)):
+            direction = random.randrange(1, 5)
+            if direction == 1:
+                x1, x2 = -30, 30
+                y1, y2 = -80, -50
+            elif direction == 2:
+                x1, x2 = 50, 80
+                y1, y2 = -30, 30
+            elif direction == 3:
+                x1, x2 = -30, 30
+                y1, y2 = 50, 80
+            else:
+                x1, x2 = -80, -50
+                y1, y2 = -30, 30
+            loot = Loot(self.game, loot_type, (self.rect.centerx + random.randrange(x1, x2),
+                                               self.rect.centery + random.randrange(y1, y2)))
+            while True:
+                if pg.sprite.spritecollideany(loot, self.game._obstacles):
+                    x1 -= 5
+                    x2 += 5
+                    y1 -= 5
+                    x2 += 5
+                    loot.rect.topleft = (self.rect.centerx + random.randrange(x1, x2),
+                                         self.rect.centery + random.randrange(y1, y2))
                 else:
-                    x1, x2 = -80, -50
-                    y1, y2 = -30, 30
-                loot = Loot(self.game, 4, (self.rect.centerx + random.randrange(x1, x2),
-                                           self.rect.centery + random.randrange(y1, y2)))
-                while True:
-                    if pg.sprite.spritecollideany(loot, self.game._obstacles):
-                        x1 -= 5
-                        x2 += 5
-                        y1 -= 5
-                        x2 += 5
-                        loot.rect.topleft = (self.rect.centerx + random.randrange(x1, x2),
-                                             self.rect.centery + random.randrange(y1, y2))
-                    else:
-                        break
+                    break
 
 
 class Crate(SimpleObject):
@@ -127,12 +135,13 @@ class Loot(pg.sprite.Sprite):
              loot_items.cut_image((16, 0), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0)),
              loot_items.cut_image((32, 0), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0)),
              loot_items.cut_image((48, 0), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0)),
-             loot_items.cut_image((0, 16), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0))]
+             loot_items.cut_image((0, 16), 16, 16, new_size=(24, 24), colorkey=(0, 0, 0)),
+             sheet.cut_image((160, 0), 32, 32, new_size=(24, 24), colorkey=(0, 0, 0))]
 
     def __init__(self, game: 'main.Game', loot_type: int, pos: tuple[int, int]):
         super().__init__(game._picked, game._camera_group, game._all_sprites)
         self.image = self.ITEMS[loot_type]
         self.rect = self.image.get_rect(center=pos)
         self.loot_type = loot_type
-        if loot_type != 4:
+        if loot_type != 4 and loot_type != 5:
             self.name = LOOT_NAMES[loot_type]
